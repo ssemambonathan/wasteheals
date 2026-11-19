@@ -1,0 +1,1687 @@
+MASTER SOFTWARE ENGINEERING DIRECTIVE
+# WASTEHEALS — PRODUCTION-GRADE COMMUNITY WASTE MANAGEMENT, CIRCULAR ECONOMY & SOCIAL IMPACT PLATFORM
+
+## 1. YOUR ROLE AND MISSION
+
+You are acting as the principal software architect, senior full-stack engineer, financial systems engineer, cybersecurity engineer, database architect, QA engineer and DevOps engineer responsible for building WasteHeals.
+
+You are not building a prototype, tutorial, university demonstration, mockup or disposable MVP.
+
+You are engineering a real commercial software platform intended to be deployed, operated, maintained, secured and eventually offered to real communities, waste collectors, recycling companies, healthcare partners and institutional customers in Uganda and potentially other African markets.
+
+Your responsibility is to deliver a complete, maintainable, secure, tested and documented system.
+
+You must think like an engineering team building a product that will handle:
+- Real people’s identities and personal information.
+- Real waste collection transactions.
+- Real inventory and commercial sales.
+- Real financial obligations.
+- Real mobile-money payments.
+- Real healthcare contributions and claims.
+- Sensitive financial and operational reports.
+- Business-critical records that must not be lost.
+
+A beautiful interface is not sufficient. Correctness, security, reliability, financial integrity and operational usefulness take priority.
+
+Never claim that a feature is complete if it only has a visual interface, mock data or an unimplemented backend.
+
+Never silently substitute fake integrations for real integrations.
+
+---
+
+# 2. PRODUCT VISION
+
+Product name: WasteHeals.
+
+Tagline: Every kilogram you collect, protects your health.
+
+WasteHeals is a technology-enabled circular economy and social-impact platform designed to transform community waste into economic, environmental and social value.
+
+The platform connects:
+
+1. Households producing waste.
+2. Informal waste pickers and collectors.
+3. Collection agents.
+4. Collection hubs.
+5. Waste sorting and processing operations.
+6. Industrial recycling buyers.
+7. Organic waste recovery operators.
+8. Farmers and compost buyers.
+9. Healthcare providers.
+10. WasteHeals administrators and financial teams.
+
+The platform must enable communities to separate, collect, recover, trade and responsibly manage waste while creating sustainable income opportunities and supporting access to defined healthcare services for participating waste collectors.
+
+Long-term ambition: build an integrated community waste management and recovery network that reduces uncontrolled dumping, maximises safe resource recovery and improves the livelihoods and health of vulnerable communities.
+
+Initial market: Uganda, beginning with a controlled Kampala pilot.
+
+Design for future regional expansion without making the first release unnecessarily complicated.
+
+---
+
+# 3. NON-NEGOTIABLE ENGINEERING PRINCIPLES
+
+Follow these principles throughout development:
+
+1. Security must be designed into the system from the beginning.
+2. Financial transactions must be traceable and auditable.
+3. No posted financial transaction may be silently edited or deleted.
+4. All money calculations must use exact decimal arithmetic.
+5. All important operations must be transactional and idempotent.
+6. No payment must be treated as successful merely because a request was sent.
+7. No mobile-money webhook must be trusted without verification.
+8. No sensitive operation may rely only on a phone number.
+9. Offline data must not automatically become financially confirmed data.
+10. No critical feature may rely on hardcoded sample data in production.
+11. Every important operation must have appropriate authorization.
+12. Database backups and tested recovery procedures are mandatory.
+13. The system must be usable on low-end Android smartphones and unreliable networks.
+14. Do not build microservices prematurely.
+15. Do not sacrifice financial correctness for development speed.
+
+Use clean architecture principles, domain-driven design where useful, separation of concerns and modular boundaries.
+
+Prefer simple, understandable implementations over unnecessary abstraction.
+
+---
+
+# 4. TECHNOLOGY STACK
+
+Use the following technologies unless a documented technical limitation makes a change necessary.
+
+## Backend
+- Node.js LTS.
+- TypeScript with strict compiler settings.
+- NestJS.
+- REST API.
+- OpenAPI/Swagger.
+- Prisma ORM.
+- PostgreSQL.
+- Redis.
+- BullMQ for background jobs.
+
+## Frontend
+- React.
+- TypeScript.
+- Vite.
+- Tailwind CSS.
+- shadcn/ui.
+- TanStack Query.
+- React Hook Form.
+- Zod validation.
+
+## Offline support
+- Progressive Web Application.
+- IndexedDB.
+- Background synchronisation where supported.
+- Explicit sync status and conflict handling.
+- Service workers.
+
+## Infrastructure
+- Docker.
+- Docker Compose for local development.
+- Production container deployment.
+- S3-compatible object storage.
+- Managed PostgreSQL with point-in-time recovery where available.
+- Redis with appropriate persistence and access controls.
+- CI/CD pipelines.
+
+## Testing
+- Jest.
+- Supertest.
+- Playwright.
+- k6 for performance testing.
+- Static analysis and dependency vulnerability scanning.
+
+## Integrations
+- MTN Mobile Money through an approved integration.
+- Airtel Money through an approved integration.
+- Africa's Talking for USSD and SMS.
+- Email service provider.
+- Optional push notifications.
+
+Use provider adapters so that the business logic is not tied to one payment company.
+
+Never assume sandbox credentials are production credentials.
+
+---
+
+# 5. SYSTEM ARCHITECTURE
+
+Build a modular monolith with independent business modules.
+
+Required modules:
+
+1. Authentication and identity.
+2. User and role management.
+3. Picker management.
+4. Household and community management.
+5. Agent management.
+6. Collection hub management.
+7. Material and grade management.
+8. Pricing and rate management.
+9. Waste collection and weighing.
+10. Inventory and traceability.
+11. Sorting and processing.
+12. Buyer management.
+13. Buyer orders and sales.
+14. Invoicing and buyer payments.
+15. Financial accounting.
+16. Picker earnings and settlements.
+17. Mobile-money payment processing.
+18. Wallet accounting, subject to legal and operational approval.
+19. Performance rewards.
+20. Healthcare funding.
+21. Healthcare partners and clinics.
+22. Healthcare vouchers and claims.
+23. Organic waste recovery.
+24. Compost and processing output management.
+25. Household incentives.
+26. Notifications.
+27. Disputes and appeals.
+28. Risk management and fraud monitoring.
+29. Reporting and analytics.
+30. Environmental impact measurement.
+31. Audit logging.
+32. System configuration.
+33. Backup and disaster recovery operations.
+
+Every module must have clearly defined responsibilities and interfaces.
+
+Use domain services for important calculations. Do not put business logic in controllers or frontend components.
+
+---
+
+# 6. USER ROLES AND PERMISSIONS
+
+Implement role-based access control and resource-level authorization.
+
+Required roles:
+
+- Super Administrator.
+- System Administrator.
+- Finance Manager.
+- Finance Officer.
+- Treasury Officer.
+- Auditor.
+- Operations Manager.
+- Hub Manager.
+- Collection Agent.
+- Picker.
+- Household Member.
+- Buyer.
+- Organic Processing Operator.
+- Healthcare Manager.
+- Healthcare Provider/Clinic User.
+
+A user may have multiple explicitly assigned roles where appropriate.
+
+Implement:
+- Role-based permissions.
+- Resource ownership checks.
+- Hub-level access restrictions.
+- Administrative approval workflows.
+- Separation of financial duties.
+- Permission audit history.
+- Account suspension and reactivation.
+- Session and device management.
+
+The person calculating a financial distribution must not automatically be the only person approving and executing it.
+
+---
+
+# 7. PICKER MANAGEMENT
+
+Build a complete picker registration and management system.
+
+Features:
+- Registration.
+- Unique picker ID.
+- Name and contact details.
+- Optional profile photograph.
+- Location and community.
+- Identification verification status.
+- Emergency contact where appropriate.
+- Preferred language.
+- Assigned hub.
+- Registration date.
+- Training and safety records.
+- PPE issuance records.
+- Account status.
+- Earnings history.
+- Payment preference.
+- Healthcare contribution history.
+- Reward history.
+- Dispute history.
+
+Support manual verification and approval by authorised staff.
+
+Do not expose sensitive picker information to unrelated users.
+
+Pickers must have a simple personal portal showing:
+- Total accepted kilograms.
+- Deliveries.
+- Earnings.
+- Settled and unsettled earnings.
+- Reward allocations.
+- Wallet balance, if the wallet is approved.
+- Payout history.
+- Healthcare benefits and contribution information.
+- Disputes.
+- Notifications.
+
+---
+
+# 8. HOUSEHOLD AND COMMUNITY MANAGEMENT
+
+Households must be first-class participants, not merely anonymous waste sources.
+
+Features:
+- Household registration.
+- Unique household reference.
+- Community and location.
+- Household contact person.
+- Number of participating members, where relevant.
+- Waste separation education.
+- Collection schedule.
+- Collection history.
+- Contamination records.
+- Household incentives.
+- Complaints and service requests.
+
+Households should be able to see collection schedules and collection records.
+
+Support community-level performance reporting without unnecessarily exposing personal information.
+
+---
+
+# 9. WASTE MATERIAL MANAGEMENT
+
+Create an administrator-controlled material catalogue.
+
+Initial categories:
+
+RECYCLABLE:
+- Plastic.
+- Metal.
+- Paper.
+- Cardboard.
+- Glass.
+
+ORGANIC:
+- Food leftovers.
+- Fruit and vegetable waste.
+- Garden waste.
+- Other approved biodegradable materials.
+
+RESIDUAL:
+- Non-recyclable waste.
+- Contaminated waste.
+- Other materials requiring authorised disposal.
+
+Each material must support:
+- Material name.
+- Category.
+- Description.
+- Unit of measurement.
+- Permitted grades.
+- Quality requirements.
+- Handling requirements.
+- Storage requirements.
+- Approved recovery route.
+- Purchase eligibility.
+- Buyer eligibility.
+- Pricing history.
+- Environmental reporting classification.
+
+Do not assume all plastics, food waste or organic materials can be processed identically.
+
+Materials must be configurable without code changes.
+
+---
+
+# 10. PRICING AND WEIGHING
+
+Create a central pricing engine.
+
+Support:
+- Material-specific purchase prices.
+- Grade-specific rates.
+- Hub-specific rates.
+- Effective dates.
+- Expiry dates.
+- Approval workflows.
+- Rate history.
+- Buyer-specific selling prices.
+- Transport and processing cost assumptions.
+- Profitability thresholds.
+
+At delivery acceptance, save an immutable snapshot of the applicable price and grade.
+
+Changing a future rate must never alter an existing accepted delivery's earnings.
+
+All weight calculations must use PostgreSQL NUMERIC/Prisma Decimal.
+
+Support:
+- Kilograms.
+- Calibrated scale records.
+- Gross weight.
+- Tare weight.
+- Net weight.
+- Quality deductions only when contractually justified and transparently documented.
+- Agent identity.
+- Hub identity.
+- Timestamp.
+- Receipt reference.
+- Optional photograph/evidence.
+
+Every accepted delivery must generate a unique reference.
+
+Provide printable or digital receipts.
+
+---
+
+# 11. COLLECTION MANAGEMENT
+
+Implement complete collection workflows.
+
+A collection can originate from:
+- A picker delivering waste to a hub.
+- An agent collecting from a household.
+- A community collection event.
+- An authorised institutional collection.
+
+Workflow:
+
+1. Create collection record.
+2. Identify household or picker.
+3. Identify collection agent.
+4. Record material and grade.
+5. Record measured weight.
+6. Validate material acceptance rules.
+7. Calculate applicable payment or incentive.
+8. Confirm acceptance.
+9. Generate receipt.
+10. Update inventory.
+11. Create the appropriate financial liability or household reward record.
+12. Synchronise offline records when applicable.
+
+Never create a second financial liability because a mobile device resubmitted an offline event.
+
+Use unique event identifiers and idempotency keys.
+
+Offline collection records must be marked as pending synchronisation and pending verification where applicable.
+
+Preserve:
+- Original event time.
+- Server receipt time.
+- Device identifier.
+- Agent identity.
+- Hub.
+- Synchronisation status.
+- Verification status.
+
+---
+
+# 12. ORGANIC WASTE RECOVERY MODULE
+
+This is a major part of the WasteHeals vision.
+
+Build a complete module for managing organic waste from participating households and communities.
+
+Required features:
+
+A. Household separation:
+- Organic waste registration.
+- Collection schedules.
+- Household collection history.
+- Contamination records.
+- Accepted and rejected quantities.
+
+B. Organic collection:
+- Agent collection records.
+- Weight measurement.
+- Collection receipts.
+- Household and community attribution.
+- Transport records.
+
+C. Processing:
+- Composting batch management.
+- Batch start and completion dates.
+- Input weight.
+- Material composition.
+- Moisture and temperature records where operationally appropriate.
+- Turning and inspection records.
+- Contamination and rejection.
+- Processing losses.
+- Output weight.
+- Quality checks.
+- Batch approval.
+
+D. Outputs:
+- Finished compost inventory.
+- Soil amendment inventory.
+- Sales to farmers and other buyers.
+- Processing costs.
+- Revenue.
+- Batch traceability.
+
+E. Future expansion:
+- Black Soldier Fly processing.
+- Anaerobic digestion and biogas.
+- Other validated organic recovery technologies.
+
+Do not represent these future technologies as operational before they are implemented and validated.
+
+Support responsible disposal tracking for residual material.
+
+A kilogram collected is not automatically a kilogram recycled. Track input, processing, finished output, sold output, rejects and residual disposal separately.
+
+---
+
+# 13. INVENTORY AND TRACEABILITY
+
+Build an inventory system that follows materials from collection to final destination.
+
+Track:
+- Received stock.
+- Accepted stock.
+- Rejected stock.
+- Sorted stock.
+- Processing batches.
+- Storage location.
+- Inventory transfers.
+- Stock adjustments.
+- Buyer allocations.
+- Sold stock.
+- Remaining stock.
+- Damaged or contaminated stock.
+- Residual disposal.
+
+Use inventory batches and movements.
+
+Do not allow stock to become negative through normal operations.
+
+Every stock adjustment must have:
+- Reason.
+- Authorised user.
+- Evidence where appropriate.
+- Timestamp.
+- Audit record.
+
+Implement physical stock reconciliation.
+
+Support traceability from buyer sale back to source deliveries where feasible.
+
+---
+
+# 14. BUYER AND MARKETPLACE MODULE
+
+Implement a complete buyer management system.
+
+Buyer profiles:
+- Company name.
+- Registration details.
+- Contact persons.
+- Location.
+- Material interests.
+- Accepted grades.
+- Minimum quantities.
+- Pricing.
+- Payment terms.
+- Credit limits.
+- Verification status.
+- Contract documents.
+- Account status.
+
+Features:
+- Buyer discovery and management.
+- Buyer price offers.
+- Purchase orders.
+- Waste sales.
+- Sale line items.
+- Dispatch records.
+- Delivery notes.
+- Weighbridge records.
+- Buyer acceptance.
+- Rejections.
+- Invoices.
+- Partial payments.
+- Outstanding receivables.
+- Credit limits.
+- Buyer payment history.
+
+A buyer sale must reference the inventory being sold.
+
+Support partial deliveries and partial payments.
+
+Buyer rejections must have documented reasons and evidence.
+
+A buyer rejection must not automatically cancel a compliant picker’s guaranteed earnings. Investigate the source and responsibility before any adjustment.
+
+---
+
+# 15. CRITICAL FINANCIAL SYSTEM
+
+This is one of the most important parts of the entire platform.
+
+Treat the financial subsystem as a controlled accounting and payment system.
+
+Do not implement it as a collection of simple balance fields.
+
+## 15.1 Accounting architecture
+
+Implement double-entry bookkeeping.
+
+Required entities include:
+
+- Financial accounts.
+- Account categories.
+- Journal entries.
+- Journal lines.
+- Financial periods.
+- Financial policies.
+- Picker earning liabilities.
+- Wallet liabilities.
+- Buyer receivables.
+- Buyer receipts.
+- Picker payouts.
+- Healthcare liabilities.
+- Restricted fund accounts.
+- Operating expenses.
+- Inventory and cost of goods sold.
+- Financial distributions.
+- Reconciliations.
+- Approval records.
+- Audit records.
+
+Every posted journal entry must balance:
+
+Total debits = Total credits.
+
+Enforce this through transactional application logic and suitable database-level safeguards.
+
+Use reversal entries to correct posted accounting entries. Never delete posted financial history.
+
+Use immutable financial event references.
+
+## 15.2 Money and precision
+
+Use:
+- UGX as the initial base currency.
+- PostgreSQL NUMERIC.
+- Prisma Decimal.
+- Explicit rounding rules.
+- No JavaScript floating-point calculations for money.
+- Immutable transaction references.
+- Idempotency keys.
+
+Store currency on financial records so that future currency expansion is possible.
+
+Never store money in binary floating-point fields.
+
+## 15.3 Guaranteed picker earnings
+
+This is a core WasteHeals commitment.
+
+A picker receives guaranteed earnings for every accepted kilogram according to the applicable approved material and grade rate.
+
+At acceptance:
+- Load the approved purchase rate.
+- Calculate earnings using Decimal.
+- Save the rate snapshot.
+- Create the picker earning entitlement.
+- Create the corresponding accounting liability.
+- Update inventory atomically.
+- Prevent duplicate processing.
+
+The picker must not lose an accepted earning simply because a buyer pays late or a later commercial sale is delayed, provided the picker complied with acceptance conditions.
+
+## 15.4 Picker payment preference
+
+Each picker chooses one of two settlement methods:
+
+A. Direct mobile-money payment.
+
+B. Credit to their WasteHeals wallet, subject to applicable legal and regulatory approval.
+
+The choice must be recorded and applied to each eligible earning.
+
+Do not credit the wallet and initiate a mobile-money payout for the same earning.
+
+Support:
+- Payment preference.
+- Verified payment destination.
+- Payment initiation.
+- Pending status.
+- Successful status.
+- Failed status.
+- Unknown status.
+- Reconciliation.
+- Payout receipts.
+- Payment history.
+
+A preference change must not silently alter payments already being processed.
+
+## 15.5 Mobile-money payment architecture
+
+Build a dedicated payment orchestration subsystem.
+
+Support integration adapters for:
+- MTN Mobile Money.
+- Airtel Money.
+
+The application must be able to add other providers without rewriting financial business logic.
+
+Each payment must have:
+- Internal payment ID.
+- Unique idempotency key.
+- Provider reference.
+- Picker reference.
+- Amount.
+- Currency.
+- Destination reference.
+- Initiating user or system process.
+- Payment purpose.
+- Creation timestamp.
+- Provider status.
+- Final settlement status.
+- Failure code and description.
+- Callback history.
+- Reconciliation status.
+
+Required payment lifecycle:
+
+CREATED → VALIDATING → SUBMITTED → PENDING → SUCCESS / FAILED / UNKNOWN.
+
+The system must handle:
+- Duplicate payment requests.
+- Duplicate callbacks.
+- Delayed callbacks.
+- Out-of-order callbacks.
+- Network timeouts.
+- Provider downtime.
+- Insufficient provider balance.
+- Incorrect phone numbers.
+- Invalid account destinations.
+- Rejected transactions.
+- Reversed transactions.
+- Ambiguous provider responses.
+
+CRITICAL RULE:
+
+A timeout is not proof of failure.
+
+If a provider request times out after submission, mark it UNKNOWN/PENDING RECONCILIATION. Query the provider using the original reference where supported. Never blindly create another payout.
+
+Verify provider callbacks using the provider's documented authentication and signature mechanisms.
+
+Validate:
+- Callback authenticity.
+- Transaction reference.
+- Expected amount.
+- Currency.
+- Destination.
+- Transaction state.
+- Duplicate event status.
+
+Never trust a callback simply because it reached an endpoint.
+
+Never expose API secrets in frontend code, application logs or source control.
+
+Never store mobile-money PINs or OTPs.
+
+Use secure secret management and encrypted sensitive destinations.
+
+Implement provider-specific adapters with documented sandbox and production configurations.
+
+A provider payment is not financially successful until its authoritative final result is verified and the corresponding accounting transaction is posted.
+
+## 15.6 Reconciliation
+
+Build a dedicated payment reconciliation engine.
+
+Support:
+- Internal payment records.
+- Provider transaction records.
+- Provider statement imports where available.
+- Automatic matching.
+- Manual matching.
+- Unmatched transactions.
+- Duplicate detection.
+- Missing callbacks.
+- Unexpected amounts.
+- Reversals.
+- Reconciliation reports.
+- Finance approval.
+
+Every payment must eventually be classified as settled, failed, reversed or unresolved.
+
+Unresolved transactions must remain visible to authorised finance staff.
+
+Do not silently clear unresolved payments.
+
+## 15.7 Wallet system
+
+If approved for operation, implement a proper double-entry wallet ledger.
+
+Wallet features:
+- Wallet account.
+- Wallet balance derived from posted transactions.
+- Credits.
+- Withdrawals.
+- Transfers where legally permitted.
+- Transaction history.
+- Reversals.
+- Limits.
+- Suspicious activity monitoring.
+- Account suspension.
+- Reconciliation.
+
+Wallet balance must never be the sole source of truth.
+
+The wallet ledger is the source of the displayed balance.
+
+Implement withdrawal controls, limits and approval workflows.
+
+Before enabling real stored-value wallet functionality, obtain legal advice on Uganda's applicable payment-services and electronic-money requirements. If authorisation or a licensed partner is required, integrate through that approved structure instead of operating an unlicensed wallet.
+
+## 15.8 Healthcare contribution policy
+
+The approved initial policy is:
+
+UGX 30 per kilogram of waste confirmed as sold.
+
+The contribution is calculated on confirmed sold kilograms, not simply collected kilograms.
+
+For example:
+
+1,000 confirmed sold kilograms × UGX 30 = UGX 30,000 healthcare contribution.
+
+Record:
+- Sold quantity.
+- Contribution rate.
+- Calculated contribution.
+- Buyer sale reference.
+- Funding status.
+- Actual cash funding.
+- Fund account.
+- Allocation history.
+
+Recognise the obligation when the sale is confirmed under the applicable accounting policy.
+
+Do not report an unfunded contribution as cash available for healthcare.
+
+When buyer cash is received, allocate the appropriate amount to the restricted healthcare fund in accordance with the approved policy.
+
+## 15.9 Performance rewards
+
+30% of positive distributable surplus is allocated to the picker performance reward pool.
+
+The reward pool must be zero if distributable surplus is zero or negative.
+
+Do not calculate picker rewards as 30% of gross sales.
+
+Suggested distribution score:
+
+- Verified accepted kilograms: 50%.
+- Quality and sorting accuracy: 25%.
+- Consistency: 15%.
+- Safety and training compliance: 10%.
+
+Normalise scores and allocate the pool proportionally.
+
+For the initial pilot, support a simpler verified-volume and quality model until sufficient reliable data exists.
+
+Publish reward rules to pickers.
+
+Provide a reward calculation explanation and dispute process.
+
+Do not incentivise unsafe collection practices or penalise legitimate absence arbitrarily.
+
+## 15.10 Surplus allocation
+
+Calculate distributable surplus only after considering the applicable business costs, including:
+
+- Cost of sold inventory.
+- Picker procurement costs.
+- Transport.
+- Sorting and handling.
+- Healthcare contributions.
+- Operating expenses.
+- Rejections and expected losses.
+- Applicable taxes and other obligations.
+- Required reserves and adjustments.
+
+Do not allocate a surplus if the result is zero or negative.
+
+Initial proposed allocation policy, configurable and subject to approval:
+
+- 30% picker performance rewards.
+- 35% operations.
+- 20% contingency.
+- 15% expansion.
+
+These are configurable policy percentages, not hardcoded constants.
+
+Guaranteed picker earnings are separate from the performance reward pool.
+
+## 15.11 Liquidity protection
+
+Accounting profit does not automatically mean cash is available.
+
+Before any surplus distribution, calculate available distributable cash after accounting for:
+
+- Unsettled picker earnings.
+- Due healthcare obligations.
+- Due operating obligations.
+- Taxes and other liabilities.
+- Minimum working capital.
+- Required contingency liquidity.
+
+Block or reduce distributions if the liquidity test fails.
+
+Provide an explanation of the failed condition.
+
+## 15.12 Accounting reports
+
+Implement:
+- Profit and loss.
+- Balance sheet.
+- Cash flow.
+- Trial balance.
+- General ledger.
+- Accounts receivable.
+- Accounts payable.
+- Picker liability report.
+- Payout report.
+- Wallet liability report.
+- Healthcare fund report.
+- Revenue by material.
+- Cost by material.
+- Contribution margin per kilogram.
+- Inventory valuation.
+- Buyer ageing.
+- Financial period closing.
+- Financial reconciliation.
+- Surplus calculation.
+
+Distinguish accounting profitability from available cash.
+
+---
+
+# 16. HEALTHCARE MODULE
+
+Implement a defined healthcare support system.
+
+Features:
+- Clinic registration.
+- Clinic verification.
+- Service catalogue.
+- Service pricing.
+- Healthcare fund.
+- Contribution records.
+- Fund availability.
+- Picker eligibility.
+- Voucher generation.
+- Voucher validation.
+- Claim submission.
+- Claim approval.
+- Claim rejection.
+- Clinic payment.
+- Claim reconciliation.
+- Beneficiary history.
+- Emergency assistance workflow where funded.
+- Healthcare reporting.
+
+A voucher must be:
+- Unique.
+- Time-bound where applicable.
+- Restricted to approved services and clinics.
+- Validated before redemption.
+- Protected against duplicate redemption.
+
+Do not promise unlimited medical cover.
+
+The system must distinguish:
+- Contributions accrued.
+- Contributions funded.
+- Available restricted funds.
+- Vouchers issued.
+- Vouchers redeemed.
+- Claims approved.
+- Claims paid.
+
+Healthcare benefits and eligibility must be configurable through approved policies.
+
+Obtain appropriate professional and regulatory review before offering the healthcare funding arrangement to the public.
+
+---
+
+# 17. HOUSEHOLD INCENTIVES
+
+Build an incentive framework to encourage waste separation.
+
+Support:
+- Household points.
+- Accepted collection records.
+- Contamination scoring.
+- Collection consistency.
+- Approved rewards.
+- Reward redemption.
+- Incentive history.
+
+Do not automatically create cash liabilities for household points.
+
+Every reward programme must have a funding policy, limits, eligibility criteria and approval controls.
+
+---
+
+# 18. DISPUTE MANAGEMENT
+
+Build a formal dispute and appeals system.
+
+Disputes may concern:
+- Weighing.
+- Material grading.
+- Accepted quantities.
+- Picker earnings.
+- Mobile-money payments.
+- Household collection.
+- Buyer rejection.
+- Healthcare voucher redemption.
+- Reward allocations.
+
+Every dispute must have:
+- Unique reference.
+- Related transaction.
+- Reporter.
+- Category.
+- Description.
+- Supporting evidence.
+- Assigned investigator.
+- Status.
+- Resolution.
+- Appeal status.
+- Resolution timestamp.
+- Audit trail.
+
+Users must be able to follow their dispute status.
+
+No dispute resolution may silently rewrite a posted financial transaction.
+
+---
+
+# 19. USSD, SMS AND LOW-CONNECTIVITY SUPPORT
+
+Design the architecture to support Africa's Talking USSD and SMS integration.
+
+USSD should eventually allow basic users to:
+- Register or verify identity through approved processes.
+- Check earnings.
+- Check payment status.
+- Check collection history.
+- Check healthcare benefit information.
+- Receive notifications.
+
+Do not trust the caller phone number alone for sensitive actions.
+
+Use appropriate PIN or additional verification controls, with secure storage and rate limits.
+
+Build an offline-capable PWA for collection agents.
+
+Offline functionality must support:
+- Recording collections.
+- Capturing measurements.
+- Generating provisional receipts.
+- Queuing events.
+- Showing synchronisation status.
+
+Offline events must be verified by the server before creating final financial liabilities or payment instructions.
+
+Prevent duplicate synchronisation.
+
+---
+
+# 20. DASHBOARDS
+
+Create separate dashboards for each role.
+
+ADMIN DASHBOARD:
+- Total waste received.
+- Total accepted waste.
+- Waste by material.
+- Organic waste recovery.
+- Active pickers.
+- Registered households.
+- Active agents.
+- Active hubs.
+- Buyer sales.
+- Revenue.
+- Operating costs.
+- Profitability.
+- Healthcare fund.
+- Environmental impact.
+- Alerts and operational risks.
+
+FINANCE DASHBOARD:
+- Cash position.
+- Picker liabilities.
+- Payouts.
+- Pending and failed payments.
+- Unreconciled transactions.
+- Buyer receivables.
+- Healthcare contributions.
+- Restricted funds.
+- Financial period performance.
+- Surplus calculations.
+
+HUB DASHBOARD:
+- Today's collections.
+- Weighing records.
+- Stock by material.
+- Pending acceptance.
+- Sorting tasks.
+- Inventory movements.
+- Dispatches.
+
+PICKER DASHBOARD:
+- Earnings.
+- Payment history.
+- Healthcare information.
+- Reward information.
+- Delivery history.
+- Disputes.
+
+HOUSEHOLD DASHBOARD:
+- Collection schedule.
+- Collection history.
+- Separation performance.
+- Incentives.
+- Complaints.
+
+BUYER DASHBOARD:
+- Available materials.
+- Orders.
+- Deliveries.
+- Invoices.
+- Payments.
+- Account history.
+
+CLINIC DASHBOARD:
+- Voucher verification.
+- Claims.
+- Approved services.
+- Payment history.
+
+All dashboards must display authorised, real database information.
+
+---
+
+# 21. REPORTING AND ENVIRONMENTAL IMPACT
+
+Track environmental impact carefully.
+
+Required measures:
+- Waste collected.
+- Waste accepted.
+- Waste sorted.
+- Waste sold.
+- Waste rejected.
+- Organic waste processed.
+- Finished compost produced.
+- Compost sold.
+- Waste sent for authorised disposal.
+- Verified recycling/recovery quantities.
+- Household participation.
+- Picker income.
+- Picker payment reliability.
+- Healthcare contributions funded.
+- Healthcare beneficiaries.
+- Revenue and costs per kilogram.
+
+Never claim that all collected waste was recycled.
+
+Environmental impact factors and emissions estimates must be sourced, documented and configurable.
+
+Support CSV and PDF exports with access controls.
+
+---
+
+# 22. CYBERSECURITY REQUIREMENTS
+
+Treat security as a first-class engineering discipline.
+
+Implement:
+
+AUTHENTICATION:
+- Secure password hashing using Argon2id or an appropriate maintained equivalent.
+- Strong password policy.
+- MFA for privileged users.
+- Secure session handling.
+- Short-lived access tokens where JWT is used.
+- Refresh token rotation and revocation.
+- Login rate limiting.
+- Account lockout or progressive throttling.
+- Secure password reset.
+- Session expiry.
+- Device/session management.
+
+AUTHORIZATION:
+- Deny by default.
+- Server-side role and resource checks.
+- Hub-level data isolation.
+- No reliance on frontend permission checks.
+- Separation of duties.
+
+APPLICATION SECURITY:
+- Validate all input.
+- Parameterised database queries.
+- Protect against SQL injection.
+- Protect against XSS.
+- Protect against CSRF where applicable.
+- Restrict CORS.
+- Use secure HTTP headers.
+- Enforce HTTPS.
+- Rate-limit sensitive endpoints.
+- Protect file uploads.
+- Prevent path traversal.
+- Prevent insecure direct object references.
+- Avoid sensitive information in logs.
+- Use secure error responses.
+
+API SECURITY:
+- Authentication and authorization on every protected endpoint.
+- Request size limits.
+- Schema validation.
+- API versioning.
+- Idempotency.
+- Abuse detection.
+- Webhook verification.
+- Sensitive endpoint rate limits.
+
+DATA SECURITY:
+- Encrypt sensitive information in transit.
+- Encrypt sensitive information at rest through appropriate infrastructure and field-level encryption where justified.
+- Encrypt payment destinations.
+- Protect backups.
+- Restrict database access.
+- Use separate development, staging and production credentials.
+- Never commit secrets.
+- Use secret management.
+- Establish data retention and deletion policies.
+- Maintain auditable access to sensitive records.
+
+SUPPLY CHAIN:
+- Pin dependencies appropriately.
+- Scan vulnerabilities.
+- Keep dependencies updated.
+- Review third-party packages.
+- Avoid abandoned libraries.
+- Generate software bills of materials where practical.
+
+Do not claim that a system is unhackable. Design for prevention, detection, containment and recovery.
+
+Perform threat modelling for authentication, financial processing, payment webhooks, data exposure, insider threats and offline synchronisation.
+
+---
+
+# 23. BACKUPS AND DISASTER RECOVERY
+
+Data loss is unacceptable.
+
+Implement:
+- Automated database backups.
+- Point-in-time recovery where supported.
+- Encrypted backup storage.
+- Separate backup credentials.
+- Off-site backup copies.
+- Backup retention policies.
+- Backup monitoring.
+- Documented restore procedures.
+- Regular restore testing.
+- Disaster recovery runbooks.
+
+Backups must be tested, not merely scheduled.
+
+Define and document:
+- Recovery Point Objective (RPO).
+- Recovery Time Objective (RTO).
+- Recovery responsibilities.
+- Incident escalation.
+
+Do not store the only backup in the same environment as the production database.
+
+---
+
+# 24. PERFORMANCE AND SCALABILITY
+
+Design for an initial Kampala pilot but support future growth.
+
+Implement:
+- Database indexing.
+- Pagination.
+- Efficient queries.
+- Transaction boundaries.
+- Connection pooling.
+- Background processing.
+- Caching where safe.
+- Observability.
+- Performance monitoring.
+
+Avoid caching financial balances in ways that can become inconsistent with the ledger.
+
+Load-test:
+- Authentication.
+- Collection creation.
+- Inventory operations.
+- Payment initiation.
+- Webhook handling.
+- Financial reporting.
+
+---
+
+# 25. USER EXPERIENCE AND DESIGN
+
+Build a professional commercial product.
+
+The design should feel like a credible modern African technology platform.
+
+Design principles:
+- Clean, professional interface.
+- Consistent spacing and typography.
+- Accessible colours and contrast.
+- Responsive desktop and mobile layouts.
+- Clear navigation.
+- Useful empty states.
+- Helpful validation messages.
+- Loading states.
+- Error states.
+- Confirmation for sensitive operations.
+- Clear financial status labels.
+- Mobile-first collection experience.
+
+Do not overdesign.
+
+Do not use decorative dashboards filled with meaningless numbers.
+
+Use realistic workflows and meaningful data visualisations.
+
+Support future localisation, including English and relevant local languages.
+
+---
+
+# 26. DATABASE DESIGN
+
+Design a complete relational database with appropriate constraints, indexes, foreign keys and migrations.
+
+Important entities should include:
+
+IDENTITY:
+users, roles, permissions, user_roles, sessions, picker_profiles, agent_profiles, household_profiles, buyer_profiles, clinic_profiles.
+
+OPERATIONS:
+collection_hubs, hub_memberships, materials, material_grades, purchase_rates, buyer_price_rules, waste_deliveries, delivery_lines, collection_events.
+
+INVENTORY:
+inventory_batches, inventory_movements, stock_locations, stock_adjustments, processing_batches, processing_inputs, processing_outputs.
+
+COMMERCIAL:
+buyers, buyer_orders, waste_sales, sale_lines, buyer_invoices, buyer_payments, buyer_rejections, dispatches.
+
+FINANCE:
+financial_accounts, journal_entries, journal_lines, financial_periods, financial_policies, picker_earnings, wallet_accounts, wallet_transactions, picker_payouts, performance_rewards, payment_destinations, payment_preferences, provider_events, reconciliation_records, distribution_allocations, approval_records.
+
+HEALTHCARE:
+healthcare_funds, healthcare_contributions, clinics, clinic_services, healthcare_vouchers, healthcare_claims, healthcare_payments.
+
+COMMUNITY:
+households, household_collections, household_rewards, reward_redemptions, collection_schedules.
+
+DISPUTES AND SECURITY:
+disputes, dispute_evidence, audit_logs, security_events, idempotency_records, notifications.
+
+Add any additional tables needed for a sound implementation.
+
+Important rules:
+- Use proper database types.
+- Use Decimal for money and weight.
+- Use UTC timestamps internally and display local time appropriately.
+- Use immutable snapshots for financial rates.
+- Use explicit transaction statuses.
+- Add unique constraints.
+- Add foreign keys.
+- Index important query paths.
+- Use soft deletion only where appropriate.
+- Never soft-delete posted financial records.
+- Use migrations, not manual production schema changes.
+
+Provide a documented ER diagram and data dictionary.
+
+---
+
+# 27. TESTING AND QUALITY ASSURANCE
+
+Write tests throughout development.
+
+Required tests:
+
+UNIT TESTS:
+- Pricing.
+- Weight calculations.
+- Picker earnings.
+- Healthcare contribution.
+- Reward calculations.
+- Surplus calculations.
+- Wallet ledger.
+- Payment state transitions.
+- Financial journal balancing.
+- Inventory costing.
+
+INTEGRATION TESTS:
+- Delivery acceptance.
+- Inventory updates.
+- Buyer sales.
+- Buyer payment receipts.
+- Mobile-money payment adapters.
+- Webhook verification.
+- Payout reconciliation.
+- Healthcare voucher redemption.
+- Financial period closing.
+
+SECURITY TESTS:
+- Privilege escalation.
+- Cross-user access.
+- Cross-hub access.
+- Duplicate requests.
+- Replay attacks.
+- Invalid webhooks.
+- Session revocation.
+- Rate-limit enforcement.
+- File upload attacks.
+- Sensitive data leakage.
+
+END-TO-END TESTS:
+- Picker registration.
+- Household registration.
+- Agent collection.
+- Delivery acceptance.
+- Picker earnings.
+- Direct mobile-money payout.
+- Wallet settlement where enabled.
+- Buyer sale.
+- Buyer receipt.
+- Healthcare contribution.
+- Healthcare voucher redemption.
+- Financial reporting.
+- Dispute submission.
+
+FINANCIAL TESTS:
+- Every posted journal balances.
+- No duplicate earning.
+- No duplicate payout.
+- No double settlement.
+- No negative wallet balance unless specifically permitted.
+- No unsupported surplus distribution.
+- No unfunded healthcare cash representation.
+- No payment marked successful without verified provider evidence.
+
+Use test data and sandbox providers for integration testing.
+
+Never use real customer funds in automated tests.
+
+---
+
+# 28. DEVELOPMENT PROCESS
+
+Do not attempt to generate the entire system in one unstructured coding session.
+
+Work in controlled engineering phases.
+
+PHASE 0 — DISCOVERY AND DESIGN
+
+Before coding:
+1. Inspect the project repository.
+2. Identify existing code and tooling.
+3. Document requirements.
+4. Identify unresolved business decisions.
+5. Produce architecture documentation.
+6. Produce database ERD.
+7. Produce module boundaries.
+8. Produce API specifications.
+9. Produce financial transaction flow diagrams.
+10. Produce threat model.
+11. Produce deployment plan.
+12. Create a development roadmap.
+
+Do not invent missing business rules.
+
+Maintain a decision register and clearly identify assumptions requiring approval.
+
+PHASE 1 — ENGINEERING FOUNDATION
+
+Build:
+- Monorepo or clearly structured repository.
+- Backend foundation.
+- Frontend foundation.
+- PostgreSQL.
+- Prisma migrations.
+- Redis.
+- Docker Compose.
+- CI pipeline.
+- Environment configuration.
+- Structured logging.
+- Health checks.
+- Error handling.
+- Testing infrastructure.
+
+PHASE 2 — IDENTITY AND ACCESS
+
+Build registration, authentication, roles, permissions and administrative controls.
+
+PHASE 3 — CORE COLLECTION OPERATIONS
+
+Build pickers, households, agents, hubs, materials, pricing, weighing, receipts and offline collection.
+
+PHASE 4 — INVENTORY AND COMMERCIAL OPERATIONS
+
+Build sorting, inventory, processing, buyers, orders, sales, dispatches and invoicing.
+
+PHASE 5 — FINANCIAL CORE
+
+Build double-entry accounting, picker earnings, payment orchestration, mobile-money adapters, reconciliation, wallet where legally approved, healthcare contribution accounting and financial reporting.
+
+This phase must pass rigorous financial tests before real payments are enabled.
+
+PHASE 6 — ORGANIC RECOVERY
+
+Build organic collection, composting batches, processing outputs, inventory, quality checks and sales.
+
+PHASE 7 — HEALTHCARE AND REWARDS
+
+Build clinics, vouchers, claims, healthcare eligibility, performance rewards and household incentives.
+
+PHASE 8 — REPORTING AND ADMINISTRATION
+
+Complete dashboards, reports, audit trails, exports and monitoring.
+
+PHASE 9 — HARDENING AND PRODUCTION READINESS
+
+Conduct security review, penetration testing, performance testing, restore tests, operational drills and user acceptance testing.
+
+PHASE 10 — CONTROLLED DEPLOYMENT
+
+Deploy staging first.
+
+Run realistic pilot workflows.
+
+Obtain business, financial, legal and operational approval.
+
+Enable real payment integrations only after provider approval, security review and financial reconciliation tests.
+
+---
+
+# 29. REQUIRED PROJECT DOCUMENTATION
+
+Maintain these documents in the repository:
+
+- README.md.
+- ARCHITECTURE.md.
+- REQUIREMENTS.md.
+- DATABASE.md.
+- API.md.
+- SECURITY.md.
+- THREAT_MODEL.md.
+- FINANCIAL_SYSTEM.md.
+- PAYMENT_INTEGRATION.md.
+- RECONCILIATION.md.
+- DEPLOYMENT.md.
+- BACKUP_AND_RECOVERY.md.
+- OPERATIONS_RUNBOOK.md.
+- TESTING.md.
+- ENVIRONMENT_SETUP.md.
+- DECISION_REGISTER.md.
+- CHANGELOG.md.
+
+Include:
+- Environment variable examples without secrets.
+- Local setup instructions.
+- Database migration instructions.
+- Test commands.
+- Deployment instructions.
+- Backup restoration instructions.
+- Payment sandbox instructions.
+
+---
+
+# 30. DEFINITION OF DONE
+
+A feature is complete only when:
+
+1. Its requirements are documented.
+2. Its database changes are implemented through migrations.
+3. Its backend logic is implemented.
+4. Its frontend workflow is implemented.
+5. Its authorization is tested.
+6. Its validation is implemented.
+7. Its error handling is implemented.
+8. Its audit requirements are implemented.
+9. Its unit tests pass.
+10. Its integration tests pass.
+11. Its relevant end-to-end tests pass.
+12. Its documentation is updated.
+
+A production-ready release additionally requires:
+- No known critical or high-severity unresolved security vulnerabilities.
+- Successful backup restoration test.
+- Successful payment reconciliation test.
+- Successful financial audit test.
+- Performance tests meeting documented targets.
+- Monitoring and alerting operational.
+- Approved production secrets and provider credentials.
+- Tested deployment and rollback procedures.
+- Business and operational acceptance.
+
+Do not report 100% completion when any critical acceptance criterion is missing.
+
+---
+
+# 31. HOW YOU MUST WORK WITH ME
+
+I am the product owner.
+
+I want you to behave like a senior engineering team, not a code generator.
+
+Your first response must NOT be a massive block of generated code.
+
+Start by:
+1. Inspecting the repository.
+2. Analysing the requirements.
+3. Identifying missing decisions.
+4. Identifying technical risks.
+5. Producing the proposed architecture.
+6. Presenting the implementation phases.
+7. Identifying the first deliverable.
+
+Ask only questions that materially affect architecture, legal compliance, financial correctness or operational design.
+
+For non-critical details, make sensible documented assumptions.
+
+When implementing:
+- Work in small, complete, testable increments.
+- Explain important engineering decisions.
+- Show which files you create or modify.
+- Run tests.
+- Fix failures before moving forward.
+- Never claim tests passed without running them.
+- Never replace real functionality with placeholder buttons.
+- Never hide incomplete features.
+- Never silently change approved business rules.
+- Keep the code maintainable and documented.
+- Preserve existing working code unless a justified migration is required.
+
+At the end of every phase, provide:
+- Completed work.
+- Files and modules changed.
+- Tests executed and actual results.
+- Security implications.
+- Known limitations.
+- Outstanding decisions.
+- Next implementation milestone.
+
+If you cannot complete a task, explain precisely what remains.
+
+---
+
+# 32. FINAL PRODUCT EXPECTATION
+
+The finished WasteHeals platform must be capable of supporting a real controlled commercial pilot.
+
+It must enable WasteHeals to:
+
+- Register and manage pickers and households.
+- Record and verify waste collection.
+- Pay guaranteed picker earnings correctly.
+- Track recyclable and organic materials.
+- Manage hubs and inventory.
+- Sell recovered materials to buyers.
+- Receive and reconcile buyer payments.
+- Process mobile-money picker payments safely.
+- Maintain reliable financial accounts.
+- Allocate the approved healthcare contribution.
+- Administer funded healthcare benefits.
+- Calculate performance rewards transparently.
+- Manage compost production and sales.
+- Record household participation and incentives.
+- Handle disputes and fraud investigations.
+- Produce accurate operational, financial and environmental reports.
+- Operate in areas with unreliable internet.
+- Protect user information and financial records.
+- Recover from infrastructure failure without losing critical data.
+
+Build WasteHeals as a real business platform with a long-term maintainable architecture.
+
+**The ultimate objective is not to demonstrate what WasteHeals could do. It is to engineer the system that WasteHeals will actually use to operate.**
+
+Begin with PHASE 0. Inspect the repository and deliver the architecture and implementation plan before proceeding to implementation.
+:::
+3. Important instructions before giving this to the agent
+There are five things I particularly want you to enforce.
+1. Do not allow the agent to skip Phase 0. It must understand the architecture and financial workflows before writing thousands of lines of code.
+2. Do not activate real payments immediately. First implement sandbox integrations, simulate failures, test duplicate callbacks, timeouts, reversals and reconciliation. Only then enable production credentials.
+3. Do not compromise financial integrity. Our UGX30/kg healthcare contribution, guaranteed picker earnings and 30% performance reward allocation must be implemented as approved, versioned financial policies.
+4. Do not treat security as a final phase. Authentication, access control, encryption, audit trails and backups must be built from the foundation.
+5. Do not confuse software completion with business launch readiness. We will still need verified buyers, working capital, clinic agreements, provider approvals and applicable regulatory clearances.
+One further decision: I recommend that the first release be a complete web-based operational platform with a responsive picker/household experience and offline-capable agent application. USSD can be integrated as a separate channel without rebuilding the backend.
+4. How I want us to proceed
+1. Architecture and database design
+   Establish the foundation, business modules, database relationships and financial architecture.
+2. Core application
+   Build authentication, roles, pickers, households, agents, hubs and collections.
+3. Commercial operations
+   Build inventory, buyers, waste sales, organic processing and traceability.
+4. Financial engine
+   Build accounting, picker earnings, mobile-money integrations, wallet controls, healthcare funding and reconciliation.
+5. Production hardening
+   Security testing, backups, monitoring, performance, deployment and recovery.
