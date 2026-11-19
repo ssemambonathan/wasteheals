@@ -6,9 +6,10 @@ WasteHeals is an Android (Kotlin + Jetpack Compose + Material 3) community waste
 
 ## Core Capabilities Implemented
 
-1. **Role-Based Operational Suite (15 Roles / 8 Workspaces)**
-   - Supports Super Admin, System Admin, Finance Manager, Finance Officer, Treasury Officer, Auditor, Operations Manager, Hub Manager, Organic Processing Operator, Collection Agent, Waste Picker, Household Member, Commercial Buyer, Healthcare Manager, and Clinic User.
-   - Workspace switching (`RoleWorkspaceChip` / `RoleSwitcherSheet`) is strictly bounded by RBAC `assignedRoles` stored in Firestore `/users/{uid}`.
+1. **Authentication & Role-Based Operational Suite (`picker`, `collector`, `admin`, `health_provider`)**
+   - Supports **Email** (`EmailAuthProvider`), **Phone Number SMS OTP** (`PhoneAuthProvider`), and **Google Sign-In** (`CredentialManager`). *(Note: Enable Email/Password and Phone Sign-In methods in Firebase Console -> Authentication -> Sign-in method for live email/SMS flows.)*
+   - The `User` (`UserAccount`) model in Firestore `/users/{uid}` stores canonical roles (`picker`, `collector`, `admin`, `health_provider`) plus `authProvider`, `requestedRole`, and workspace-level `assignedRoles` across 15 operational roles / 8 workspaces.
+   - Workspace switching (`RoleWorkspaceChip` / `RoleSwitcherSheet`) and admin RBAC role assignment (`Maker-Checker -> User Roles & RBAC`) are enforced by zero-trust `firestore.rules`.
 
 2. **Offline-First Field Collection & Calibrated Weighing**
    - Field collections are saved locally to **Room SQLite (`OfflineCollectionEntity`)** with deterministic UUID `idempotencyKey`, immutable purchase rate snapshots (`rateIdSnapshot`, `unitPriceUgxMinor`), gross/tare/moisture/contamination calculations via **`BigDecimal`** (`MoneyAndWeight` & `PricingAndWeighingEngine`), and zero-permission `ActivityResultContracts.PickVisualMedia` photo evidence.

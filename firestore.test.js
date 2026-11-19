@@ -81,11 +81,15 @@ test("User self-onboarding blocks privilege escalation and isolates private PII"
   }).firestore();
   const now = pastDate();
 
-  // Safe self-onboarding as PICKER succeeds
+  // Safe self-onboarding as PICKER via email/phone succeeds
   await assertSucceeds(
     pickerDb.collection("users").doc(PICKER_UID).set({
       userId: PICKER_UID,
       displayName: "Grace Namukasa",
+      role: "picker",
+      roles: ["picker"],
+      requestedRole: "collector",
+      authProvider: "email",
       assignedRoles: ["PICKER"],
       activeRole: "PICKER",
       status: "ACTIVE",
@@ -97,17 +101,44 @@ test("User self-onboarding blocks privilege escalation and isolates private PII"
     })
   );
 
-  // Self-assigning SUPER_ADMIN fails
+  // Self-assigning SUPER_ADMIN or canonical admin role fails
   await assertFails(
     outsiderDb.collection("users").doc(OUTSIDER_UID).set({
       userId: OUTSIDER_UID,
       displayName: "Attacker",
+      role: "admin",
+      roles: ["admin"],
+      authProvider: "phone",
       assignedRoles: ["SUPER_ADMIN"],
       activeRole: "SUPER_ADMIN",
       status: "ACTIVE",
       viewerUids: [OUTSIDER_UID],
       createdAt: now,
       updatedAt: now,
+    })
+  );
+
+  // Non-admin cannot self-escalate role/roles on update
+  await assertFails(
+    pickerDb.collection("users").doc(PICKER_UID).update({
+      role: "admin",
+      roles: ["picker", "admin"],
+      updatedAt: pastDate(1000),
+    })
+  );
+
+  // Verified bootstrap admin CAN assign collector / health_provider / admin roles
+  const adminDb = testEnv.authenticatedContext(ADMIN_UID, {
+    email: ADMIN_EMAIL,
+    email_verified: true,
+  }).firestore();
+  await assertSucceeds(
+    adminDb.collection("users").doc(PICKER_UID).update({
+      role: "health_provider",
+      roles: ["picker", "collector", "admin", "health_provider"],
+      assignedRoles: ["HEALTHCARE_MANAGER", "PICKER"],
+      activeRole: "HEALTHCARE_MANAGER",
+      updatedAt: pastDate(1000),
     })
   );
 

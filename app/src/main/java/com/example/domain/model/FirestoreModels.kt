@@ -12,6 +12,10 @@ data class UserAccount(
   @DocumentId val id: String = "",
   val userId: String = "",
   val displayName: String = "",
+  val role: String = UserRoleKey.PICKER.key,
+  val roles: List<String> = listOf(UserRoleKey.PICKER.key),
+  val requestedRole: String? = null,
+  val authProvider: String = "google",
   val assignedRoles: List<String> = listOf(UserRole.PICKER.name),
   val activeRole: String = UserRole.PICKER.name,
   val assignedHubId: String? = null,
@@ -22,6 +26,8 @@ data class UserAccount(
   @ServerTimestamp val createdAt: Timestamp? = null,
   @ServerTimestamp val updatedAt: Timestamp? = null
 )
+
+typealias User = UserAccount
 
 @Keep
 @IgnoreExtraProperties

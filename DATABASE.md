@@ -10,7 +10,7 @@ All collections live inside the named Firestore database configured in `res/valu
 | Collection | Purpose | Access / Query Alignment |
 |---|---|---|
 | `admins/{uid}` | DB-backed admin markers | Owner/Admin `get`; `update, delete: if false` |
-| `users/{userId}` | Non-PII account profile & `assignedRoles` | Owner/Admin `get`; `viewerUids` scoped `list` |
+| `users/{userId}` | Non-PII `User` profile (`role`, `roles` in `picker`/`collector`/`admin`/`health_provider`, `requestedRole`, `authProvider`, `assignedRoles`) | Owner/Admin `get`; `viewerUids` scoped `list`; non-admins cannot self-escalate |
 | `users/{userId}/private/{docId}` | Isolated PII (`email`, `phone`, `nationalIdRef`, `momoDestinationMasked`) | Strictly owner or admin |
 | `hubs/{hubId}` | Kampala hub network | Published query (`published == true`) |
 | `materials/{materialId}` | Recyclable, organic & residual catalog | Published query |

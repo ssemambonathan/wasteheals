@@ -14,11 +14,15 @@
     },
     "UserAccount": {
       "title": "UserAccount",
-      "description": "Role-based user identity and active hub membership",
+      "description": "Role-based user identity and active hub membership supporting picker, collector, admin, and health_provider roles",
       "type": "object",
       "properties": {
         "userId": { "type": "string" },
         "displayName": { "type": "string" },
+        "role": { "type": "string", "enum": ["picker", "collector", "admin", "health_provider"] },
+        "roles": { "type": "array" },
+        "requestedRole": { "type": "string", "enum": ["picker", "collector", "health_provider"] },
+        "authProvider": { "type": "string", "enum": ["google", "email", "phone"] },
         "assignedRoles": { "type": "array" },
         "activeRole": { "type": "string" },
         "assignedHubId": { "type": "string" },

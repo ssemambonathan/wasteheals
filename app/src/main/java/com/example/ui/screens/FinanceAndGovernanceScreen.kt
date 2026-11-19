@@ -24,6 +24,7 @@ import androidx.compose.material.icons.filled.Approval
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.ManageAccounts
 import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Warning
@@ -64,6 +65,7 @@ import com.example.domain.model.MoMoProvider
 import com.example.domain.model.PayoutStatus
 import com.example.domain.model.PickerEarning
 import com.example.domain.model.PickerPayout
+import com.example.domain.model.UserRoleKey
 import com.example.ui.components.EmptyStateCard
 import com.example.ui.components.MetricCard
 import com.example.ui.components.SectionHeader
@@ -94,6 +96,7 @@ fun FinanceAndGovernanceScreen(
     minWcUgx: Long
   ) -> Unit,
   onResolveApproval: (ApprovalRequest, Boolean, String?) -> Unit,
+  onAssignUserRoles: (targetUid: String, roleKeys: List<UserRoleKey>) -> Unit,
   buildCsvExport: (WasteHealsSnapshot) -> String
 ) {
   var subTab by remember { mutableIntStateOf(0) }
@@ -115,7 +118,7 @@ fun FinanceAndGovernanceScreen(
       0 -> LedgerTab(snap, buildCsvExport)
       1 -> MoMoPayoutsTab(snap, currentUid, isBusy, onInitiatePayout, onExecuteSandboxPayout, onReconcileUnknownPayout)
       2 -> SurplusAndLiquidityTab(snap)
-      3 -> MakerCheckerTab(snap, currentUid, isBusy, onProposePolicy, onResolveApproval)
+      3 -> MakerCheckerTab(snap, currentUid, isBusy, onProposePolicy, onResolveApproval, onAssignUserRoles)
     }
   }
 }
@@ -565,8 +568,10 @@ private fun MakerCheckerTab(
   currentUid: String,
   isBusy: Boolean,
   onProposePolicy: (Long, Long, Long, Long, Long, Long, Long) -> Unit,
-  onResolveApproval: (ApprovalRequest, Boolean, String?) -> Unit
+  onResolveApproval: (ApprovalRequest, Boolean, String?) -> Unit,
+  onAssignUserRoles: (targetUid: String, roleKeys: List<UserRoleKey>) -> Unit
 ) {
+  val isAdminUser = snap.profile?.roles?.contains(UserRoleKey.ADMIN.key) == true || snap.activeRole.isPrivileged
   var hcUgxText by remember(snap.policy) { mutableStateOf(snap.policy.healthcareUgxPerKg.toString()) }
   var rewText by remember(snap.policy) { mutableStateOf(snap.policy.pickerRewardPct.toString()) }
   var opsText by remember(snap.policy) { mutableStateOf(snap.policy.operationsPct.toString()) }
@@ -706,6 +711,101 @@ private fun MakerCheckerTab(
               .testTag("propose_policy_button")
           ) {
             Text("Submit Policy v${snap.policy.version + 1} as Maker")
+          }
+        }
+      }
+    }
+
+    item {
+      SectionHeader(
+        title = "User Roles & RBAC (${snap.allUsers.size})",
+        subtitle = "Firestore roles: picker, collector, admin, health_provider"
+      )
+    }
+
+    if (snap.allUsers.isEmpty()) {
+      item {
+        EmptyStateCard(
+          icon = Icons.Filled.ManageAccounts,
+          title = "No User Profiles Loaded",
+          description = "Signed-in user accounts and pending role requests appear here."
+        )
+      }
+    } else {
+      items(snap.allUsers, key = { it.userId.ifBlank { it.id } }) { userAccount ->
+        val existingKeys = remember(userAccount.userId, userAccount.roles, userAccount.role) {
+          val parsed = userAccount.roles.map { UserRoleKey.fromKey(it) }.distinct()
+          if (parsed.isNotEmpty()) parsed else listOf(UserRoleKey.fromKey(userAccount.role))
+        }
+        var selectedKeys by remember(userAccount.userId, existingKeys) { mutableStateOf(existingKeys) }
+
+        Card(
+          shape = RoundedCornerShape(14.dp),
+          colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+          border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+        ) {
+          Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(
+              modifier = Modifier.fillMaxWidth(),
+              horizontalArrangement = Arrangement.SpaceBetween,
+              verticalAlignment = Alignment.CenterVertically
+            ) {
+              Column(modifier = Modifier.weight(1f)) {
+                Text(userAccount.displayName.ifBlank { userAccount.userId }, style = MaterialTheme.typography.titleSmall)
+                Text(
+                  "Provider: ${userAccount.authProvider} • Primary role: ${userAccount.role}",
+                  style = MaterialTheme.typography.labelSmall,
+                  color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+              }
+              StatusPill(
+                text = userAccount.roles.ifEmpty { listOf(userAccount.role) }.joinToString(", "),
+                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+              )
+            }
+            if (!userAccount.requestedRole.isNullOrBlank()) {
+              Text(
+                text = "Requested role on sign-up: ${userAccount.requestedRole}",
+                style = MaterialTheme.typography.bodySmall,
+                color = WarningAmber
+              )
+            }
+            if (isAdminUser) {
+              Row(
+                modifier = Modifier
+                  .fillMaxWidth()
+                  .horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+              ) {
+                UserRoleKey.entries.forEach { roleKey ->
+                  val checked = selectedKeys.contains(roleKey)
+                  FilterChip(
+                    selected = checked,
+                    onClick = {
+                      selectedKeys = if (checked && selectedKeys.size > 1) {
+                        selectedKeys - roleKey
+                      } else if (!checked) {
+                        selectedKeys + roleKey
+                      } else {
+                        selectedKeys
+                      }
+                    },
+                    label = { Text(roleKey.key) },
+                    modifier = Modifier.testTag("user_role_chip_${userAccount.userId}_${roleKey.key}")
+                  )
+                }
+              }
+              Button(
+                onClick = { onAssignUserRoles(userAccount.userId.ifBlank { userAccount.id }, selectedKeys) },
+                enabled = !isBusy && selectedKeys != existingKeys,
+                modifier = Modifier
+                  .fillMaxWidth()
+                  .testTag("save_roles_${userAccount.userId}")
+              ) {
+                Text("Update Firestore Roles")
+              }
+            }
           }
         }
       }

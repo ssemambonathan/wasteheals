@@ -320,6 +320,7 @@ private fun WasteHealsAuthenticatedScaffold(uid: String) {
                   onReconcileUnknownPayout = { pay, ok -> vm.reconcileUnknownPayout(pay, ok) },
                   onProposePolicy = { ver, hc, r, o, c, e, wc -> vm.proposePolicy(ver, hc, r, o, c, e, wc) },
                   onResolveApproval = { req, ok, reason -> vm.resolveApproval(req, ok, reason) },
+                  onAssignUserRoles = { targetUid, keys -> vm.assignUserRoles(targetUid, keys) },
                   buildCsvExport = { vm.buildCsvComplianceReport(it) }
                 )
                 4 -> HealthcareCommunityScreen(

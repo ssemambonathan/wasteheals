@@ -1,29 +1,47 @@
 package com.example.domain.model
 
+enum class UserRoleKey(val key: String, val label: String) {
+  PICKER("picker", "Picker"),
+  COLLECTOR("collector", "Collector"),
+  ADMIN("admin", "Admin"),
+  HEALTH_PROVIDER("health_provider", "Health Provider");
+
+  companion object {
+    fun fromKey(raw: String?): UserRoleKey =
+      entries.firstOrNull { it.key.equals(raw?.trim(), ignoreCase = true) } ?: PICKER
+  }
+}
+
 enum class UserRole(
   val title: String,
   val workspaceGroup: WorkspaceGroup,
-  val isPrivileged: Boolean
+  val isPrivileged: Boolean,
+  val firestoreRoleKey: String
 ) {
-  SUPER_ADMIN("Super Administrator", WorkspaceGroup.ADMIN_GOVERNANCE, true),
-  SYSTEM_ADMIN("System Administrator", WorkspaceGroup.ADMIN_GOVERNANCE, true),
-  FINANCE_MANAGER("Finance Manager", WorkspaceGroup.FINANCE_TREASURY, true),
-  FINANCE_OFFICER("Finance Officer", WorkspaceGroup.FINANCE_TREASURY, true),
-  TREASURY_OFFICER("Treasury Officer", WorkspaceGroup.FINANCE_TREASURY, true),
-  AUDITOR("Auditor", WorkspaceGroup.FINANCE_TREASURY, true),
-  OPERATIONS_MANAGER("Operations Manager", WorkspaceGroup.HUB_OPERATIONS, true),
-  HUB_MANAGER("Hub Manager", WorkspaceGroup.HUB_OPERATIONS, true),
-  COLLECTION_AGENT("Collection Agent", WorkspaceGroup.FIELD_COLLECTION, false),
-  PICKER("Waste Picker", WorkspaceGroup.PICKER_PORTAL, false),
-  HOUSEHOLD("Household Member", WorkspaceGroup.HOUSEHOLD_PORTAL, false),
-  BUYER("Recycling / Compost Buyer", WorkspaceGroup.BUYER_MARKETPLACE, false),
-  ORGANIC_OPERATOR("Organic Processing Operator", WorkspaceGroup.HUB_OPERATIONS, true),
-  HEALTHCARE_MANAGER("Healthcare Manager", WorkspaceGroup.HEALTHCARE_CLINIC, true),
-  CLINIC_USER("Healthcare Clinic User", WorkspaceGroup.HEALTHCARE_CLINIC, false);
+  SUPER_ADMIN("Super Administrator", WorkspaceGroup.ADMIN_GOVERNANCE, true, UserRoleKey.ADMIN.key),
+  SYSTEM_ADMIN("System Administrator", WorkspaceGroup.ADMIN_GOVERNANCE, true, UserRoleKey.ADMIN.key),
+  FINANCE_MANAGER("Finance Manager", WorkspaceGroup.FINANCE_TREASURY, true, UserRoleKey.ADMIN.key),
+  FINANCE_OFFICER("Finance Officer", WorkspaceGroup.FINANCE_TREASURY, true, UserRoleKey.ADMIN.key),
+  TREASURY_OFFICER("Treasury Officer", WorkspaceGroup.FINANCE_TREASURY, true, UserRoleKey.ADMIN.key),
+  AUDITOR("Auditor", WorkspaceGroup.FINANCE_TREASURY, true, UserRoleKey.ADMIN.key),
+  OPERATIONS_MANAGER("Operations Manager", WorkspaceGroup.HUB_OPERATIONS, true, UserRoleKey.ADMIN.key),
+  HUB_MANAGER("Hub Manager", WorkspaceGroup.HUB_OPERATIONS, true, UserRoleKey.ADMIN.key),
+  COLLECTION_AGENT("Collection Agent", WorkspaceGroup.FIELD_COLLECTION, false, UserRoleKey.COLLECTOR.key),
+  PICKER("Waste Picker", WorkspaceGroup.PICKER_PORTAL, false, UserRoleKey.PICKER.key),
+  HOUSEHOLD("Household Member", WorkspaceGroup.HOUSEHOLD_PORTAL, false, UserRoleKey.PICKER.key),
+  BUYER("Recycling / Compost Buyer", WorkspaceGroup.BUYER_MARKETPLACE, false, UserRoleKey.PICKER.key),
+  ORGANIC_OPERATOR("Organic Processing Operator", WorkspaceGroup.HUB_OPERATIONS, true, UserRoleKey.COLLECTOR.key),
+  HEALTHCARE_MANAGER("Healthcare Manager", WorkspaceGroup.HEALTHCARE_CLINIC, true, UserRoleKey.HEALTH_PROVIDER.key),
+  CLINIC_USER("Healthcare Clinic User", WorkspaceGroup.HEALTHCARE_CLINIC, false, UserRoleKey.HEALTH_PROVIDER.key);
 
   companion object {
     fun fromString(raw: String?): UserRole =
-      entries.firstOrNull { it.name == raw } ?: PICKER
+      entries.firstOrNull { it.name == raw } ?: when (raw?.trim()?.lowercase()) {
+        UserRoleKey.ADMIN.key -> SUPER_ADMIN
+        UserRoleKey.COLLECTOR.key -> COLLECTION_AGENT
+        UserRoleKey.HEALTH_PROVIDER.key -> HEALTHCARE_MANAGER
+        else -> PICKER
+      }
   }
 }
 

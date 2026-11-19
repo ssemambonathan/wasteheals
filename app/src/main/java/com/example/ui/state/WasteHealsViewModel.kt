@@ -42,10 +42,12 @@ import com.example.domain.model.PurchaseRate
 import com.example.domain.model.UserAccount
 import com.example.domain.model.UserPrivatePii
 import com.example.domain.model.UserRole
+import com.example.domain.model.UserRoleKey
 import com.example.domain.model.VerificationStatus
 import com.example.domain.model.WasteDelivery
 import com.example.domain.model.WasteMaterial
 import com.example.domain.model.WasteSale
+import com.example.ui.auth.PendingAuthOnboarding
 import com.google.firebase.firestore.FirebaseFirestoreException
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
@@ -88,7 +90,8 @@ data class WasteHealsSnapshot(
   val households: List<Household> = emptyList(),
   val disputes: List<DisputeRecord> = emptyList(),
   val approvals: List<ApprovalRequest> = emptyList(),
-  val auditLogs: List<AuditLog> = emptyList()
+  val auditLogs: List<AuditLog> = emptyList(),
+  val allUsers: List<UserAccount> = emptyList()
 ) {
   val activeRole: UserRole get() = UserRole.fromString(profile?.activeRole)
 
@@ -193,8 +196,11 @@ class WasteHealsViewModel(
 
   init {
     viewModelScope.launch {
-      catalogRepo.ensureUserOnboarded()
-        .onFailure { _feedback.value = "Onboarding warning: ${it.localizedMessage}" }
+      val (pendingName, pendingRole) = PendingAuthOnboarding.consume()
+      catalogRepo.ensureUserOnboarded(
+        preferredDisplayName = pendingName,
+        requestedRoleKey = pendingRole
+      ).onFailure { _feedback.value = "Onboarding warning: ${it.localizedMessage}" }
     }
   }
 
@@ -250,9 +256,10 @@ class WasteHealsViewModel(
     finRepo.observeHouseholds(currentUserId).safeStream("households"),
     finRepo.observeDisputes(currentUserId).safeStream("disputes"),
     finRepo.observeApprovalRequests(currentUserId).safeStream("approvals"),
-    finRepo.observeAuditLogs(currentUserId).safeStream("audits")
-  ) { hh, dsp, apr, aud ->
-    FinBundleB(hh, dsp, apr, aud)
+    finRepo.observeAuditLogs(currentUserId).safeStream("audits"),
+    catalogRepo.observeAllUsers(currentUserId).safeStream("users")
+  ) { hh, dsp, apr, aud, users ->
+    FinBundleB(hh, dsp, apr, aud, users)
   }
 
   val uiState: StateFlow<UiState<WasteHealsSnapshot>> = combine(
@@ -281,7 +288,8 @@ class WasteHealsViewModel(
       households = fb.households,
       disputes = fb.disputes,
       approvals = fb.approvals,
-      auditLogs = fb.audits
+      auditLogs = fb.audits,
+      allUsers = fb.users
     )
   }
     .map<WasteHealsSnapshot, UiState<WasteHealsSnapshot>> { UiState.Success(it) }
@@ -314,6 +322,11 @@ class WasteHealsViewModel(
   fun switchRole(role: UserRole) = runAction("Switched workspace to ${role.title}") {
     catalogRepo.switchActiveRole(role)
   }
+
+  fun assignUserRoles(targetUid: String, roleKeys: List<UserRoleKey>) =
+    runAction("Updated Firestore RBAC roles for user") {
+      catalogRepo.assignUserRoles(targetUid, roleKeys)
+    }
 
   fun enqueueOfflineCollection(
     originType: OriginType,
@@ -507,6 +520,7 @@ class WasteHealsViewModel(
     val households: List<Household>,
     val disputes: List<DisputeRecord>,
     val approvals: List<ApprovalRequest>,
-    val audits: List<AuditLog>
+    val audits: List<AuditLog>,
+    val users: List<UserAccount>
   )
 }

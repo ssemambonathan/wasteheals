@@ -16,6 +16,7 @@ import com.example.domain.model.SettlementMethod
 import com.example.domain.model.UserAccount
 import com.example.domain.model.UserPrivatePii
 import com.example.domain.model.UserRole
+import com.example.domain.model.UserRoleKey
 import com.example.domain.model.WasteMaterial
 import com.google.firebase.Firebase
 import com.google.firebase.auth.FirebaseAuth
@@ -129,7 +130,10 @@ class WasteHealsCatalogRepository(
   fun observeScaleCalibrations(): Flow<List<ScaleCalibrationEntity>> =
     localDb.offlineCollectionDao().observeScaleCalibrations()
 
-  suspend fun ensureUserOnboarded(): Result<Unit> {
+  suspend fun ensureUserOnboarded(
+    preferredDisplayName: String? = null,
+    requestedRoleKey: UserRoleKey? = null
+  ): Result<Unit> {
     var path = "users"
     return try {
       val user = auth.currentUser ?: error("Not signed in")
@@ -139,16 +143,42 @@ class WasteHealsCatalogRepository(
       val snap = docRef.get().await()
       if (!snap.exists()) {
         val isBootAdmin = isBootstrapAdmin()
+        val providerIds = user.providerData.map { it.providerId }
+        val authProvider = when {
+          providerIds.contains("google.com") -> "google"
+          providerIds.contains("phone") -> "phone"
+          providerIds.contains("password") -> "email"
+          !user.phoneNumber.isNullOrBlank() -> "phone"
+          else -> "email"
+        }
         val initialRoles = if (isBootAdmin) {
           UserRole.entries.map { it.name }
         } else {
           listOf(UserRole.PICKER.name, UserRole.HOUSEHOLD.name)
         }
+        val canonicalRole = if (isBootAdmin) UserRoleKey.ADMIN.key else UserRoleKey.PICKER.key
+        val canonicalRoles = if (isBootAdmin) {
+          UserRoleKey.entries.map { it.key }
+        } else {
+          listOf(UserRoleKey.PICKER.key)
+        }
+        val safeRequestedRole = if (isBootAdmin) null else {
+          requestedRoleKey?.takeIf { it != UserRoleKey.ADMIN && it != UserRoleKey.PICKER }?.key
+        }
         val activeRole = if (isBootAdmin) UserRole.SUPER_ADMIN.name else UserRole.PICKER.name
-        val display = (user.displayName?.takeIf { it.isNotBlank() } ?: "WasteHeals Member").take(80)
+        val fallbackName = user.email?.substringBefore("@")
+          ?: user.phoneNumber
+          ?: "WasteHeals Member"
+        val display = (preferredDisplayName?.takeIf { it.isNotBlank() }
+          ?: user.displayName?.takeIf { it.isNotBlank() }
+          ?: fallbackName).take(80)
         val userPayload = mapOf(
           "userId" to uid,
           "displayName" to display,
+          "role" to canonicalRole,
+          "roles" to canonicalRoles,
+          "requestedRole" to safeRequestedRole,
+          "authProvider" to authProvider,
           "assignedRoles" to initialRoles,
           "activeRole" to activeRole,
           "assignedHubId" to "hub_nakawa",
@@ -158,12 +188,13 @@ class WasteHealsCatalogRepository(
           "viewerUids" to listOf(uid),
           "createdAt" to FieldValue.serverTimestamp(),
           "updatedAt" to FieldValue.serverTimestamp()
-        )
+        ).filterValues { it != null }
+        val phoneVal = user.phoneNumber?.takeIf { it.isNotBlank() } ?: "+256770000000"
         val piiPayload = mapOf(
           "userId" to uid,
           "email" to user.email,
-          "phone" to "+256770000000",
-          "momoDestinationMasked" to "+25677***000",
+          "phone" to phoneVal,
+          "momoDestinationMasked" to phoneVal,
           "createdAt" to FieldValue.serverTimestamp(),
           "updatedAt" to FieldValue.serverTimestamp()
         ).filterValues { it != null }
@@ -359,6 +390,66 @@ class WasteHealsCatalogRepository(
           "updatedAt" to FieldValue.serverTimestamp()
         )
       ).await()
+      Result.success(Unit)
+    } catch (e: CancellationException) {
+      throw e
+    } catch (e: Exception) {
+      handleFirestoreError(e, OperationType.UPDATE, path)
+      Result.failure(e)
+    }
+  }
+
+  /**
+   * Admin-only RBAC role assignment for canonical Firestore roles (picker, collector, admin, health_provider).
+   */
+  suspend fun assignUserRoles(targetUid: String, roleKeys: List<UserRoleKey>): Result<Unit> {
+    val adminUid = requireUserId()
+    val cleanKeys = roleKeys.distinct().ifEmpty { listOf(UserRoleKey.PICKER) }
+    val primaryKey = cleanKeys.first()
+    val workspaceRoles = cleanKeys.flatMap { key ->
+      when (key) {
+        UserRoleKey.PICKER -> listOf(UserRole.PICKER.name, UserRole.HOUSEHOLD.name)
+        UserRoleKey.COLLECTOR -> listOf(UserRole.COLLECTION_AGENT.name, UserRole.ORGANIC_OPERATOR.name)
+        UserRoleKey.ADMIN -> UserRole.entries.map { it.name }
+        UserRoleKey.HEALTH_PROVIDER -> listOf(UserRole.HEALTHCARE_MANAGER.name, UserRole.CLINIC_USER.name)
+      }
+    }.distinct()
+    val primaryWorkspaceRole = when (primaryKey) {
+      UserRoleKey.ADMIN -> UserRole.SUPER_ADMIN.name
+      UserRoleKey.COLLECTOR -> UserRole.COLLECTION_AGENT.name
+      UserRoleKey.HEALTH_PROVIDER -> UserRole.HEALTHCARE_MANAGER.name
+      UserRoleKey.PICKER -> UserRole.PICKER.name
+    }
+    val path = "users/$targetUid"
+    return try {
+      val needsAdminDoc = if (cleanKeys.contains(UserRoleKey.ADMIN)) {
+        !db.collection("admins").document(targetUid).get().await().exists()
+      } else {
+        false
+      }
+      val batch = db.batch()
+      batch.update(
+        db.collection("users").document(targetUid),
+        mapOf(
+          "role" to primaryKey.key,
+          "roles" to cleanKeys.map { it.key },
+          "assignedRoles" to workspaceRoles,
+          "activeRole" to primaryWorkspaceRole,
+          "status" to AccountStatus.ACTIVE.name,
+          "updatedAt" to FieldValue.serverTimestamp()
+        )
+      )
+      if (needsAdminDoc) {
+        batch.set(
+          db.collection("admins").document(targetUid),
+          mapOf(
+            "uid" to targetUid,
+            "grantedBy" to adminUid,
+            "createdAt" to FieldValue.serverTimestamp()
+          )
+        )
+      }
+      batch.commit().await()
       Result.success(Unit)
     } catch (e: CancellationException) {
       throw e
