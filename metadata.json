@@ -1,6 +1,6 @@
 {
-  "name": "",
-  "description": "",
+  "name": "WasteHeals",
+  "description": "Circular economy waste collection, double-entry financial ledger, organic composting, and picker healthcare platform for Uganda.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
