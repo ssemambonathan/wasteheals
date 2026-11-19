@@ -1,0 +1,768 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Pillar 4 Global Safety Net: Default-deny catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- GLOBAL HARDENED HELPERS ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // Pure token-based bootstrap admin check (safe in list rules, requires verified email)
+    function isBootstrapAdmin() {
+      return isSignedIn() &&
+             request.auth.token.email == 'nathanssemmambo08@gmail.com' &&
+             request.auth.token.email_verified == true;
+    }
+
+    // DB-backed admin check (use ONLY in get/create/update/delete, NEVER in allow list)
+    function isAdmin() {
+      return isBootstrapAdmin() ||
+             (isSignedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid)));
+    }
+
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    function isValidTimestamp(ts) {
+      return ts is timestamp && ts <= request.time;
+    }
+
+    function isBoundedUidList(list) {
+      return list is list && list.size() >= 1 && list.size() <= 15 && (list[0] is string);
+    }
+
+    // --- VALIDATION HELPERS (ANTI-UPDATE-GAP) ---
+    function isValidAdminMarker(data) {
+      return data.uid is string && data.uid.size() >= 1 && data.uid.size() <= 128 &&
+             (!('email' in data) || (data.email is string && data.email.size() <= 200)) &&
+             (!('grantedBy' in data) || (data.grantedBy is string && data.grantedBy.size() <= 128)) &&
+             isValidTimestamp(data.createdAt);
+    }
+
+    function isValidUserAccount(data) {
+      return data.userId is string && data.userId.size() >= 1 && data.userId.size() <= 128 &&
+             data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 80 &&
+             data.assignedRoles is list && data.assignedRoles.size() >= 1 && data.assignedRoles.size() <= 15 &&
+             (data.assignedRoles[0] is string) &&
+             data.activeRole is string && data.activeRole.size() >= 2 && data.activeRole.size() <= 40 &&
+             (!('assignedHubId' in data) || (data.assignedHubId is string && data.assignedHubId.size() <= 128)) &&
+             data.status in ['ACTIVE', 'PENDING_VERIFICATION', 'SUSPENDED'] &&
+             (!('preferredLanguage' in data) || (data.preferredLanguage is string && data.preferredLanguage.size() <= 20)) &&
+             (!('paymentPreference' in data) || data.paymentPreference in ['DIRECT_MOMO', 'WALLET_DISABLED']) &&
+             isBoundedUidList(data.viewerUids) &&
+             isValidTimestamp(data.createdAt) &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    function isSafeSelfRoles(roles) {
+      return roles.size() <= 2 && roles.hasOnly(['PICKER', 'HOUSEHOLD']);
+    }
+
+    function isValidUserPrivatePii(data) {
+      return data.userId is string && data.userId.size() >= 1 && data.userId.size() <= 128 &&
+             (!('email' in data) || (data.email is string && data.email.size() <= 200)) &&
+             (!('phone' in data) || (data.phone is string && data.phone.size() <= 32)) &&
+             (!('nationalIdRef' in data) || (data.nationalIdRef is string && data.nationalIdRef.size() <= 64)) &&
+             (!('emergencyContact' in data) || (data.emergencyContact is string && data.emergencyContact.size() <= 120)) &&
+             (!('momoDestinationMasked' in data) || (data.momoDestinationMasked is string && data.momoDestinationMasked.size() <= 40)) &&
+             isValidTimestamp(data.createdAt) &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidCollectionHub(data) {
+      return data.code is string && data.code.size() >= 2 && data.code.size() <= 32 &&
+             data.name is string && data.name.size() >= 2 && data.name.size() <= 100 &&
+             data.district is string && data.district.size() >= 2 && data.district.size() <= 80 &&
+             data.managerUid is string && data.managerUid.size() >= 1 && data.managerUid.size() <= 128 &&
+             data.ownerUid is string && data.ownerUid.size() >= 1 && data.ownerUid.size() <= 128 &&
+             data.published is bool &&
+             data.status in ['ACTIVE', 'INACTIVE'] &&
+             isValidTimestamp(data.createdAt) &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidWasteMaterial(data) {
+      return data.code is string && data.code.size() >= 2 && data.code.size() <= 32 &&
+             data.name is string && data.name.size() >= 2 && data.name.size() <= 80 &&
+             data.category in ['RECYCLABLE', 'ORGANIC', 'RESIDUAL'] &&
+             data.unit is string && data.unit.size() >= 1 && data.unit.size() <= 20 &&
+             data.grades is list && data.grades.size() >= 1 && data.grades.size() <= 10 &&
+             (data.grades[0] is string) &&
+             data.recoveryRoute is string && data.recoveryRoute.size() >= 2 && data.recoveryRoute.size() <= 80 &&
+             data.purchaseEligible is bool &&
+             data.buyerEligible is bool &&
+             data.co2FactorMilli is int && data.co2FactorMilli >= 0 &&
+             data.published is bool &&
+             data.ownerUid is string && data.ownerUid.size() >= 1 && data.ownerUid.size() <= 128 &&
+             isValidTimestamp(data.createdAt) &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidPurchaseRate(data) {
+      return data.materialId is string && data.materialId.size() >= 1 && data.materialId.size() <= 128 &&
+             data.materialName is string && data.materialName.size() >= 1 && data.materialName.size() <= 80 &&
+             data.grade is string && data.grade.size() >= 1 && data.grade.size() <= 20 &&
+             data.hubId is string && data.hubId.size() >= 1 && data.hubId.size() <= 128 &&
+             data.purchasePriceUgxMinor is int && data.purchasePriceUgxMinor >= 0 &&
+             data.buyerSellPriceUgxMinor is int && data.buyerSellPriceUgxMinor >= 0 &&
+             data.currency is string && data.currency.size() == 3 &&
+             data.version is int && data.version >= 1 &&
+             data.status in ['PENDING_APPROVAL', 'APPROVED', 'SUPERSEDED', 'REJECTED'] &&
+             data.published is bool &&
+             data.makerUid is string && data.makerUid.size() >= 1 && data.makerUid.size() <= 128 &&
+             (!('checkerUid' in data) || (data.checkerUid is string && data.checkerUid.size() <= 128)) &&
+             data.ownerUid is string && data.ownerUid.size() >= 1 && data.ownerUid.size() <= 128 &&
+             isValidTimestamp(data.createdAt) &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidFinancialPolicy(data) {
+      return data.version is int && data.version >= 1 &&
+             data.healthcareUgxPerKg is int && data.healthcareUgxPerKg >= 0 &&
+             data.pickerRewardPct is int && data.pickerRewardPct >= 0 && data.pickerRewardPct <= 100 &&
+             data.operationsPct is int && data.operationsPct >= 0 && data.operationsPct <= 100 &&
+             data.contingencyPct is int && data.contingencyPct >= 0 && data.contingencyPct <= 100 &&
+             data.expansionPct is int && data.expansionPct >= 0 && data.expansionPct <= 100 &&
+             (data.pickerRewardPct + data.operationsPct + data.contingencyPct + data.expansionPct) == 100 &&
+             data.minWorkingCapitalUgx is int && data.minWorkingCapitalUgx >= 0 &&
+             data.walletEnabled is bool &&
+             data.status in ['PENDING_APPROVAL', 'APPROVED', 'SUPERSEDED', 'REJECTED'] &&
+             data.published is bool &&
+             data.makerUid is string && data.makerUid.size() >= 1 && data.makerUid.size() <= 128 &&
+             (!('checkerUid' in data) || (data.checkerUid is string && data.checkerUid.size() <= 128)) &&
+             data.ownerUid is string && data.ownerUid.size() >= 1 && data.ownerUid.size() <= 128 &&
+             isValidTimestamp(data.createdAt) &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidWasteDelivery(data) {
+      return data.idempotencyKey is string && data.idempotencyKey.size() >= 8 && data.idempotencyKey.size() <= 128 &&
+             data.originType in ['PICKER_HUB', 'HOUSEHOLD_AGENT', 'COMMUNITY_EVENT'] &&
+             data.hubId is string && data.hubId.size() >= 1 && data.hubId.size() <= 128 &&
+             data.pickerUid is string && data.pickerUid.size() >= 1 && data.pickerUid.size() <= 128 &&
+             data.pickerName is string && data.pickerName.size() >= 1 && data.pickerName.size() <= 80 &&
+             (!('householdId' in data) || (data.householdId is string && data.householdId.size() <= 128)) &&
+             data.agentUid is string && data.agentUid.size() >= 1 && data.agentUid.size() <= 128 &&
+             data.materialId is string && data.materialId.size() >= 1 && data.materialId.size() <= 128 &&
+             data.materialName is string && data.materialName.size() >= 1 && data.materialName.size() <= 80 &&
+             data.grade is string && data.grade.size() >= 1 && data.grade.size() <= 20 &&
+             data.grossKgMilli is int && data.grossKgMilli >= 0 &&
+             data.tareKgMilli is int && data.tareKgMilli >= 0 &&
+             data.netKgMilli is int && data.netKgMilli >= 0 &&
+             data.deductionKgMilli is int && data.deductionKgMilli >= 0 &&
+             data.acceptedKgMilli is int && data.acceptedKgMilli >= 0 &&
+             data.rateIdSnapshot is string && data.rateIdSnapshot.size() >= 1 && data.rateIdSnapshot.size() <= 128 &&
+             data.unitPriceUgxMinor is int && data.unitPriceUgxMinor >= 0 &&
+             data.totalEarningsUgxMinor is int && data.totalEarningsUgxMinor >= 0 &&
+             data.currency is string && data.currency.size() == 3 &&
+             data.receiptRef is string && data.receiptRef.size() >= 4 && data.receiptRef.size() <= 64 &&
+             (!('evidenceUri' in data) || (data.evidenceUri is string && data.evidenceUri.size() <= 500)) &&
+             data.verificationStatus in ['PENDING_VERIFICATION', 'ACCEPTED', 'REJECTED', 'DISPUTED'] &&
+             data.originalEventEpochMs is int && data.originalEventEpochMs > 0 &&
+             data.deviceId is string && data.deviceId.size() >= 1 && data.deviceId.size() <= 128 &&
+             isBoundedUidList(data.viewerUids) &&
+             isValidTimestamp(data.createdAt) &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidInventoryBatch(data) {
+      return data.batchCode is string && data.batchCode.size() >= 3 && data.batchCode.size() <= 64 &&
+             data.hubId is string && data.hubId.size() >= 1 && data.hubId.size() <= 128 &&
+             data.materialId is string && data.materialId.size() >= 1 && data.materialId.size() <= 128 &&
+             data.materialName is string && data.materialName.size() >= 1 && data.materialName.size() <= 80 &&
+             data.grade is string && data.grade.size() >= 1 && data.grade.size() <= 20 &&
+             data.sourceDeliveryId is string && data.sourceDeliveryId.size() >= 1 && data.sourceDeliveryId.size() <= 128 &&
+             data.receivedKgMilli is int && data.receivedKgMilli >= 0 &&
+             data.availableKgMilli is int && data.availableKgMilli >= 0 &&
+             data.allocatedKgMilli is int && data.allocatedKgMilli >= 0 &&
+             data.soldKgMilli is int && data.soldKgMilli >= 0 &&
+             data.rejectedKgMilli is int && data.rejectedKgMilli >= 0 &&
+             data.disposedKgMilli is int && data.disposedKgMilli >= 0 &&
+             data.unitCostUgxMinor is int && data.unitCostUgxMinor >= 0 &&
+             data.status in ['RECEIVED', 'SORTED', 'ALLOCATED', 'SOLD_OUT', 'DISPOSED'] &&
+             data.ownerUid is string && data.ownerUid.size() >= 1 && data.ownerUid.size() <= 128 &&
+             isBoundedUidList(data.viewerUids) &&
+             isValidTimestamp(data.createdAt) &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidCompostBatch(data) {
+      return data.batchCode is string && data.batchCode.size() >= 3 && data.batchCode.size() <= 64 &&
+             data.hubId is string && data.hubId.size() >= 1 && data.hubId.size() <= 128 &&
+             data.inputKgMilli is int && data.inputKgMilli > 0 &&
+             data.materialComposition is string && data.materialComposition.size() >= 2 && data.materialComposition.size() <= 200 &&
+             data.moisturePctMilli is int && data.moisturePctMilli >= 0 && data.moisturePctMilli <= 100000 &&
+             data.temperatureCelsiusMilli is int && data.temperatureCelsiusMilli >= 0 &&
+             data.turningCount is int && data.turningCount >= 0 &&
+             data.rejectedKgMilli is int && data.rejectedKgMilli >= 0 &&
+             data.lossKgMilli is int && data.lossKgMilli >= 0 &&
+             data.outputCompostKgMilli is int && data.outputCompostKgMilli >= 0 &&
+             data.soldCompostKgMilli is int && data.soldCompostKgMilli >= 0 &&
+             data.processingCostUgxMinor is int && data.processingCostUgxMinor >= 0 &&
+             data.status in ['ACTIVE', 'CURING', 'QUALITY_CHECK', 'APPROVED', 'SOLD_OUT'] &&
+             data.operatorUid is string && data.operatorUid.size() >= 1 && data.operatorUid.size() <= 128 &&
+             (!('approvedByUid' in data) || (data.approvedByUid is string && data.approvedByUid.size() <= 128)) &&
+             isBoundedUidList(data.viewerUids) &&
+             isValidTimestamp(data.createdAt) &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidWasteSale(data) {
+      return data.saleRef is string && data.saleRef.size() >= 3 && data.saleRef.size() <= 64 &&
+             data.buyerName is string && data.buyerName.size() >= 2 && data.buyerName.size() <= 100 &&
+             data.buyerOwnerUid is string && data.buyerOwnerUid.size() >= 1 && data.buyerOwnerUid.size() <= 128 &&
+             data.hubId is string && data.hubId.size() >= 1 && data.hubId.size() <= 128 &&
+             data.batchId is string && data.batchId.size() >= 1 && data.batchId.size() <= 128 &&
+             data.materialId is string && data.materialId.size() >= 1 && data.materialId.size() <= 128 &&
+             data.materialName is string && data.materialName.size() >= 1 && data.materialName.size() <= 80 &&
+             data.grade is string && data.grade.size() >= 1 && data.grade.size() <= 20 &&
+             data.dispatchedKgMilli is int && data.dispatchedKgMilli >= 0 &&
+             data.confirmedSoldKgMilli is int && data.confirmedSoldKgMilli >= 0 &&
+             data.rejectedKgMilli is int && data.rejectedKgMilli >= 0 &&
+             (!('rejectionReason' in data) || (data.rejectionReason is string && data.rejectionReason.size() <= 300)) &&
+             data.unitSellPriceUgxMinor is int && data.unitSellPriceUgxMinor >= 0 &&
+             data.totalInvoiceUgxMinor is int && data.totalInvoiceUgxMinor >= 0 &&
+             data.paidUgxMinor is int && data.paidUgxMinor >= 0 && data.paidUgxMinor <= data.totalInvoiceUgxMinor &&
+             data.currency is string && data.currency.size() == 3 &&
+             data.healthcareRateUgxPerKg is int && data.healthcareRateUgxPerKg >= 0 &&
+             data.healthcareAccruedUgxMinor is int && data.healthcareAccruedUgxMinor >= 0 &&
+             data.healthcareFundedUgxMinor is int && data.healthcareFundedUgxMinor >= 0 && data.healthcareFundedUgxMinor <= data.healthcareAccruedUgxMinor &&
+             data.status in ['ORDERED', 'DISPATCHED', 'CONFIRMED', 'PARTIALLY_PAID', 'PAID', 'REJECTED'] &&
+             data.ownerUid is string && data.ownerUid.size() >= 1 && data.ownerUid.size() <= 128 &&
+             isBoundedUidList(data.viewerUids) &&
+             isValidTimestamp(data.createdAt) &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidJournalEntry(data) {
+      return data.entryRef is string && data.entryRef.size() >= 3 && data.entryRef.size() <= 64 &&
+             data.periodId is string && data.periodId.size() >= 4 && data.periodId.size() <= 32 &&
+             data.eventType is string && data.eventType.size() >= 2 && data.eventType.size() <= 64 &&
+             data.sourceId is string && data.sourceId.size() >= 1 && data.sourceId.size() <= 128 &&
+             data.idempotencyKey is string && data.idempotencyKey.size() >= 8 && data.idempotencyKey.size() <= 128 &&
+             data.description is string && data.description.size() >= 2 && data.description.size() <= 240 &&
+             data.totalDebitsUgxMinor is int && data.totalDebitsUgxMinor > 0 &&
+             data.totalCreditsUgxMinor is int && data.totalCreditsUgxMinor == data.totalDebitsUgxMinor &&
+             data.currency is string && data.currency.size() == 3 &&
+             data.postedByUid is string && data.postedByUid.size() >= 1 && data.postedByUid.size() <= 128 &&
+             (!('reversedEntryId' in data) || (data.reversedEntryId is string && data.reversedEntryId.size() <= 128)) &&
+             data.status in ['POSTED', 'REVERSED'] &&
+             isBoundedUidList(data.viewerUids) &&
+             isValidTimestamp(data.createdAt);
+    }
+
+    function isValidJournalLine(data) {
+      return data.entryId is string && data.entryId.size() >= 1 && data.entryId.size() <= 128 &&
+             data.accountCode is string && data.accountCode.size() >= 2 && data.accountCode.size() <= 32 &&
+             data.accountName is string && data.accountName.size() >= 2 && data.accountName.size() <= 80 &&
+             data.accountCategory in ['ASSET', 'LIABILITY', 'EQUITY', 'REVENUE', 'EXPENSE', 'RESTRICTED_FUND'] &&
+             data.debitUgxMinor is int && data.debitUgxMinor >= 0 &&
+             data.creditUgxMinor is int && data.creditUgxMinor >= 0 &&
+             (data.debitUgxMinor > 0 || data.creditUgxMinor > 0) &&
+             !(data.debitUgxMinor > 0 && data.creditUgxMinor > 0) &&
+             data.currency is string && data.currency.size() == 3 &&
+             data.hubId is string && data.hubId.size() >= 1 && data.hubId.size() <= 128 &&
+             data.postedByUid is string && data.postedByUid.size() >= 1 && data.postedByUid.size() <= 128 &&
+             isBoundedUidList(data.viewerUids) &&
+             isValidTimestamp(data.createdAt);
+    }
+
+    function isValidPickerEarning(data) {
+      return data.deliveryId is string && data.deliveryId.size() >= 1 && data.deliveryId.size() <= 128 &&
+             data.pickerUid is string && data.pickerUid.size() >= 1 && data.pickerUid.size() <= 128 &&
+             data.pickerName is string && data.pickerName.size() >= 1 && data.pickerName.size() <= 80 &&
+             data.hubId is string && data.hubId.size() >= 1 && data.hubId.size() <= 128 &&
+             data.acceptedKgMilli is int && data.acceptedKgMilli > 0 &&
+             data.unitRateUgxMinor is int && data.unitRateUgxMinor >= 0 &&
+             data.amountUgxMinor is int && data.amountUgxMinor >= 0 &&
+             data.currency is string && data.currency.size() == 3 &&
+             data.settlementMethod in ['DIRECT_MOMO', 'WALLET_DISABLED'] &&
+             data.payoutStatus in ['UNSETTLED', 'QUEUED', 'PROCESSING', 'SETTLED', 'FAILED', 'UNKNOWN_RECONCILE'] &&
+             (!('payoutId' in data) || (data.payoutId is string && data.payoutId.size() <= 128)) &&
+             data.ownerUid is string && data.ownerUid.size() >= 1 && data.ownerUid.size() <= 128 &&
+             isBoundedUidList(data.viewerUids) &&
+             isValidTimestamp(data.createdAt) &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidPickerPayout(data) {
+      return data.idempotencyKey is string && data.idempotencyKey.size() >= 8 && data.idempotencyKey.size() <= 128 &&
+             data.earningId is string && data.earningId.size() >= 1 && data.earningId.size() <= 128 &&
+             data.pickerUid is string && data.pickerUid.size() >= 1 && data.pickerUid.size() <= 128 &&
+             data.pickerName is string && data.pickerName.size() >= 1 && data.pickerName.size() <= 80 &&
+             data.provider in ['MTN_MOMO', 'AIRTEL_MONEY'] &&
+             data.destinationMasked is string && data.destinationMasked.size() >= 4 && data.destinationMasked.size() <= 40 &&
+             data.amountUgxMinor is int && data.amountUgxMinor > 0 &&
+             data.currency is string && data.currency.size() == 3 &&
+             data.lifecycleStatus in ['CREATED', 'VALIDATING', 'SUBMITTED', 'PENDING', 'SUCCESS', 'FAILED', 'UNKNOWN'] &&
+             (!('providerRef' in data) || (data.providerRef is string && data.providerRef.size() <= 128)) &&
+             (!('failureCode' in data) || (data.failureCode is string && data.failureCode.size() <= 64)) &&
+             (!('failureReason' in data) || (data.failureReason is string && data.failureReason.size() <= 240)) &&
+             data.reconciliationStatus in ['UNRECONCILED', 'MATCHED', 'UNRESOLVED', 'REVERSED'] &&
+             data.makerUid is string && data.makerUid.size() >= 1 && data.makerUid.size() <= 128 &&
+             (!('checkerUid' in data) || (data.checkerUid is string && data.checkerUid.size() <= 128)) &&
+             isBoundedUidList(data.viewerUids) &&
+             isValidTimestamp(data.createdAt) &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidHealthcareClinic(data) {
+      return data.clinicName is string && data.clinicName.size() >= 2 && data.clinicName.size() <= 100 &&
+             data.location is string && data.location.size() >= 2 && data.location.size() <= 120 &&
+             data.licenseRef is string && data.licenseRef.size() >= 2 && data.licenseRef.size() <= 64 &&
+             data.servicesSummary is string && data.servicesSummary.size() >= 2 && data.servicesSummary.size() <= 300 &&
+             data.ownerUid is string && data.ownerUid.size() >= 1 && data.ownerUid.size() <= 128 &&
+             data.published is bool &&
+             isValidTimestamp(data.createdAt) &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidHealthcareVoucher(data) {
+      return data.voucherCode is string && data.voucherCode.size() >= 4 && data.voucherCode.size() <= 64 &&
+             data.pickerUid is string && data.pickerUid.size() >= 1 && data.pickerUid.size() <= 128 &&
+             data.clinicId is string && data.clinicId.size() >= 1 && data.clinicId.size() <= 128 &&
+             data.clinicName is string && data.clinicName.size() >= 2 && data.clinicName.size() <= 100 &&
+             data.serviceName is string && data.serviceName.size() >= 2 && data.serviceName.size() <= 100 &&
+             data.maxAmountUgxMinor is int && data.maxAmountUgxMinor > 0 &&
+             data.currency is string && data.currency.size() == 3 &&
+             data.expiresAtEpochMs is int && data.expiresAtEpochMs > 0 &&
+             data.status in ['ISSUED', 'REDEEMED', 'EXPIRED', 'CANCELLED'] &&
+             (!('redeemedByClinicUid' in data) || (data.redeemedByClinicUid is string && data.redeemedByClinicUid.size() <= 128)) &&
+             data.ownerUid is string && data.ownerUid.size() >= 1 && data.ownerUid.size() <= 128 &&
+             isBoundedUidList(data.viewerUids) &&
+             isValidTimestamp(data.createdAt) &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidHealthcareClaim(data) {
+      return data.voucherId is string && data.voucherId.size() >= 1 && data.voucherId.size() <= 128 &&
+             data.clinicId is string && data.clinicId.size() >= 1 && data.clinicId.size() <= 128 &&
+             data.clinicOwnerUid is string && data.clinicOwnerUid.size() >= 1 && data.clinicOwnerUid.size() <= 128 &&
+             data.pickerUid is string && data.pickerUid.size() >= 1 && data.pickerUid.size() <= 128 &&
+             data.claimedAmountUgxMinor is int && data.claimedAmountUgxMinor > 0 &&
+             data.currency is string && data.currency.size() == 3 &&
+             data.status in ['SUBMITTED', 'APPROVED', 'REJECTED', 'PAID'] &&
+             (!('reviewedByUid' in data) || (data.reviewedByUid is string && data.reviewedByUid.size() <= 128)) &&
+             isBoundedUidList(data.viewerUids) &&
+             isValidTimestamp(data.createdAt) &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidHousehold(data) {
+      return data.householdRef is string && data.householdRef.size() >= 3 && data.householdRef.size() <= 64 &&
+             data.ownerUid is string && data.ownerUid.size() >= 1 && data.ownerUid.size() <= 128 &&
+             data.community is string && data.community.size() >= 2 && data.community.size() <= 100 &&
+             data.hubId is string && data.hubId.size() >= 1 && data.hubId.size() <= 128 &&
+             data.memberCount is int && data.memberCount >= 1 && data.memberCount <= 100 &&
+             data.collectionDay is string && data.collectionDay.size() >= 3 && data.collectionDay.size() <= 32 &&
+             data.pointsBalance is int && data.pointsBalance >= 0 &&
+             data.contaminationCount is int && data.contaminationCount >= 0 &&
+             isBoundedUidList(data.viewerUids) &&
+             isValidTimestamp(data.createdAt) &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidDispute(data) {
+      return data.disputeRef is string && data.disputeRef.size() >= 3 && data.disputeRef.size() <= 64 &&
+             data.reporterUid is string && data.reporterUid.size() >= 1 && data.reporterUid.size() <= 128 &&
+             data.category is string && data.category.size() >= 2 && data.category.size() <= 40 &&
+             data.relatedEntityId is string && data.relatedEntityId.size() >= 1 && data.relatedEntityId.size() <= 128 &&
+             data.description is string && data.description.size() >= 4 && data.description.size() <= 500 &&
+             (!('investigatorUid' in data) || (data.investigatorUid is string && data.investigatorUid.size() <= 128)) &&
+             data.status in ['OPEN', 'INVESTIGATING', 'RESOLVED', 'APPEALED', 'CLOSED'] &&
+             (!('resolutionNotes' in data) || (data.resolutionNotes is string && data.resolutionNotes.size() <= 500)) &&
+             isBoundedUidList(data.viewerUids) &&
+             isValidTimestamp(data.createdAt) &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidApprovalRequest(data) {
+      return data.entityType is string && data.entityType.size() >= 2 && data.entityType.size() <= 64 &&
+             data.entityId is string && data.entityId.size() >= 1 && data.entityId.size() <= 128 &&
+             data.actionSummary is string && data.actionSummary.size() >= 3 && data.actionSummary.size() <= 160 &&
+             data.payloadSummary is string && data.payloadSummary.size() >= 3 && data.payloadSummary.size() <= 500 &&
+             data.makerUid is string && data.makerUid.size() >= 1 && data.makerUid.size() <= 128 &&
+             (!('checkerUid' in data) || (data.checkerUid is string && data.checkerUid.size() <= 128)) &&
+             data.status in ['PENDING', 'APPROVED', 'REJECTED'] &&
+             (!('rejectionReason' in data) || (data.rejectionReason is string && data.rejectionReason.size() <= 300)) &&
+             isBoundedUidList(data.viewerUids) &&
+             isValidTimestamp(data.createdAt) &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidAuditLog(data) {
+      return data.actorUid is string && data.actorUid.size() >= 1 && data.actorUid.size() <= 128 &&
+             data.action is string && data.action.size() >= 2 && data.action.size() <= 80 &&
+             data.entityType is string && data.entityType.size() >= 2 && data.entityType.size() <= 64 &&
+             data.entityId is string && data.entityId.size() >= 1 && data.entityId.size() <= 128 &&
+             data.summary is string && data.summary.size() >= 2 && data.summary.size() <= 300 &&
+             isBoundedUidList(data.viewerUids) &&
+             isValidTimestamp(data.createdAt);
+    }
+
+    // --- COLLECTION RULES ---
+
+    match /admins/{uid} {
+      allow get: if isSignedIn() && (isOwner(uid) || isAdmin()) && isValidId(uid);
+      allow list: if isBootstrapAdmin();
+      allow create: if isValidId(uid) && isAdmin() && isValidAdminMarker(incoming()) && incoming().uid == uid;
+      allow update, delete: if false;
+    }
+
+    match /users/{userId} {
+      allow get: if isValidId(userId) && (isOwner(userId) || isAdmin());
+      allow list: if isBootstrapAdmin() || (isSignedIn() && request.auth.uid in resource.data.viewerUids);
+      allow create: if isValidId(userId) && isSignedIn() &&
+                       incoming().userId == userId &&
+                       isValidUserAccount(incoming()) &&
+                       (
+                         isAdmin() ||
+                         (isOwner(userId) && isSafeSelfRoles(incoming().assignedRoles) && incoming().activeRole in incoming().assignedRoles && incoming().status == 'ACTIVE')
+                       );
+      allow update: if isValidId(userId) && isSignedIn() && isValidUserAccount(incoming()) &&
+                       incoming().userId == existing().userId &&
+                       incoming().createdAt == existing().createdAt && (
+                         isAdmin() ||
+                         (isOwner(userId) &&
+                          incoming().assignedRoles == existing().assignedRoles &&
+                          incoming().status == existing().status &&
+                          incoming().activeRole in existing().assignedRoles &&
+                          incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'activeRole', 'preferredLanguage', 'paymentPreference', 'updatedAt']))
+                       );
+      allow delete: if false;
+
+      // Split Collection PII Isolation (Owner or Admin only)
+      match /private/{docId} {
+        allow get: if isValidId(userId) && isValidId(docId) && (isOwner(userId) || isAdmin());
+        allow list: if isOwner(userId) || isBootstrapAdmin();
+        allow create: if isValidId(userId) && isValidId(docId) && (isOwner(userId) || isAdmin()) &&
+                         incoming().userId == userId && isValidUserPrivatePii(incoming());
+        allow update: if isValidId(userId) && isValidId(docId) && isValidUserPrivatePii(incoming()) &&
+                         (isOwner(userId) || isAdmin()) &&
+                         incoming().userId == existing().userId &&
+                         incoming().createdAt == existing().createdAt &&
+                         incoming().diff(existing()).affectedKeys().hasOnly(['email', 'phone', 'nationalIdRef', 'emergencyContact', 'momoDestinationMasked', 'updatedAt']);
+        allow delete: if false;
+      }
+    }
+
+    match /hubs/{hubId} {
+      allow get: if isValidId(hubId) && isSignedIn() && (resource.data.published == true || resource.data.ownerUid == request.auth.uid || isAdmin());
+      allow list: if isBootstrapAdmin() || (isSignedIn() && (resource.data.published == true || resource.data.ownerUid == request.auth.uid));
+      allow create: if isValidId(hubId) && isAdmin() && isValidCollectionHub(incoming());
+      allow update: if isValidId(hubId) && isAdmin() && isValidCollectionHub(incoming()) &&
+                       incoming().createdAt == existing().createdAt &&
+                       incoming().diff(existing()).affectedKeys().hasOnly(['name', 'district', 'managerUid', 'published', 'status', 'updatedAt']);
+      allow delete: if false;
+    }
+
+    match /materials/{materialId} {
+      allow get: if isValidId(materialId) && isSignedIn() && (resource.data.published == true || resource.data.ownerUid == request.auth.uid || isAdmin());
+      allow list: if isBootstrapAdmin() || (isSignedIn() && (resource.data.published == true || resource.data.ownerUid == request.auth.uid));
+      allow create: if isValidId(materialId) && isAdmin() && isValidWasteMaterial(incoming());
+      allow update: if isValidId(materialId) && isAdmin() && isValidWasteMaterial(incoming()) &&
+                       incoming().createdAt == existing().createdAt &&
+                       incoming().diff(existing()).affectedKeys().hasOnly(['name', 'grades', 'recoveryRoute', 'purchaseEligible', 'buyerEligible', 'co2FactorMilli', 'published', 'updatedAt']);
+      allow delete: if false;
+    }
+
+    match /purchase_rates/{rateId} {
+      allow get: if isValidId(rateId) && isSignedIn() && (resource.data.published == true || resource.data.ownerUid == request.auth.uid || isAdmin());
+      allow list: if isBootstrapAdmin() || (isSignedIn() && (resource.data.published == true || resource.data.ownerUid == request.auth.uid));
+      allow create: if isValidId(rateId) && isSignedIn() && isValidPurchaseRate(incoming()) &&
+                       incoming().makerUid == request.auth.uid &&
+                       incoming().ownerUid == request.auth.uid &&
+                       (
+                         (incoming().status == 'PENDING_APPROVAL' && incoming().published == false) ||
+                         (isAdmin() && incoming().version == 1 && incoming().status == 'APPROVED' && incoming().published == true)
+                       );
+      allow update: if isValidId(rateId) && isSignedIn() && isValidPurchaseRate(incoming()) &&
+                       incoming().createdAt == existing().createdAt &&
+                       incoming().makerUid == existing().makerUid &&
+                       incoming().purchasePriceUgxMinor == existing().purchasePriceUgxMinor &&
+                       incoming().buyerSellPriceUgxMinor == existing().buyerSellPriceUgxMinor && (
+                         // Maker-Checker approval/rejection (Checker MUST NOT be Maker)
+                         (existing().status == 'PENDING_APPROVAL' &&
+                          request.auth.uid != existing().makerUid &&
+                          incoming().checkerUid == request.auth.uid &&
+                          incoming().status in ['APPROVED', 'REJECTED'] &&
+                          incoming().diff(existing()).affectedKeys().hasOnly(['status', 'published', 'checkerUid', 'updatedAt'])) ||
+                         // Superseding an approved rate when new version activates
+                         (existing().status == 'APPROVED' && isAdmin() &&
+                          incoming().status == 'SUPERSEDED' && incoming().published == false &&
+                          incoming().diff(existing()).affectedKeys().hasOnly(['status', 'published', 'updatedAt']))
+                       );
+      allow delete: if false;
+    }
+
+    match /financial_policies/{policyId} {
+      allow get: if isValidId(policyId) && isSignedIn() && (resource.data.published == true || resource.data.ownerUid == request.auth.uid || isAdmin());
+      allow list: if isBootstrapAdmin() || (isSignedIn() && (resource.data.published == true || resource.data.ownerUid == request.auth.uid));
+      allow create: if isValidId(policyId) && isSignedIn() && isValidFinancialPolicy(incoming()) &&
+                       incoming().makerUid == request.auth.uid &&
+                       incoming().ownerUid == request.auth.uid &&
+                       (
+                         (incoming().status == 'PENDING_APPROVAL' && incoming().published == false) ||
+                         (isAdmin() && incoming().version == 1 && incoming().status == 'APPROVED' && incoming().published == true)
+                       );
+      allow update: if isValidId(policyId) && isSignedIn() && isValidFinancialPolicy(incoming()) &&
+                       incoming().createdAt == existing().createdAt &&
+                       incoming().makerUid == existing().makerUid &&
+                       incoming().healthcareUgxPerKg == existing().healthcareUgxPerKg &&
+                       incoming().pickerRewardPct == existing().pickerRewardPct && (
+                         (existing().status == 'PENDING_APPROVAL' &&
+                          request.auth.uid != existing().makerUid &&
+                          incoming().checkerUid == request.auth.uid &&
+                          incoming().status in ['APPROVED', 'REJECTED'] &&
+                          incoming().diff(existing()).affectedKeys().hasOnly(['status', 'published', 'checkerUid', 'updatedAt'])) ||
+                         (existing().status == 'APPROVED' && isAdmin() &&
+                          incoming().status == 'SUPERSEDED' && incoming().published == false &&
+                          incoming().diff(existing()).affectedKeys().hasOnly(['status', 'published', 'updatedAt']))
+                       );
+      allow delete: if false;
+    }
+
+    match /waste_deliveries/{deliveryId} {
+      allow get: if isValidId(deliveryId) && isSignedIn() && (request.auth.uid in resource.data.viewerUids || isAdmin());
+      allow list: if isBootstrapAdmin() || (isSignedIn() && request.auth.uid in resource.data.viewerUids);
+      allow create: if isValidId(deliveryId) && isSignedIn() && isValidWasteDelivery(incoming()) &&
+                       incoming().agentUid == request.auth.uid &&
+                       request.auth.uid in incoming().viewerUids;
+      allow update: if isValidId(deliveryId) && isSignedIn() && isValidWasteDelivery(incoming()) &&
+                       incoming().createdAt == existing().createdAt &&
+                       incoming().idempotencyKey == existing().idempotencyKey &&
+                       incoming().agentUid == existing().agentUid &&
+                       incoming().unitPriceUgxMinor == existing().unitPriceUgxMinor &&
+                       (isAdmin() || request.auth.uid in existing().viewerUids) &&
+                       existing().verificationStatus != 'ACCEPTED' &&
+                       incoming().diff(existing()).affectedKeys().hasOnly(['verificationStatus', 'deductionKgMilli', 'acceptedKgMilli', 'totalEarningsUgxMinor', 'viewerUids', 'updatedAt']);
+      allow delete: if false;
+    }
+
+    match /inventory_batches/{batchId} {
+      allow get: if isValidId(batchId) && isSignedIn() && (request.auth.uid in resource.data.viewerUids || isAdmin());
+      allow list: if isBootstrapAdmin() || (isSignedIn() && request.auth.uid in resource.data.viewerUids);
+      allow create: if isValidId(batchId) && isSignedIn() && isValidInventoryBatch(incoming()) &&
+                       incoming().ownerUid == request.auth.uid &&
+                       request.auth.uid in incoming().viewerUids;
+      allow update: if isValidId(batchId) && isSignedIn() && isValidInventoryBatch(incoming()) &&
+                       incoming().createdAt == existing().createdAt &&
+                       incoming().sourceDeliveryId == existing().sourceDeliveryId &&
+                       (isAdmin() || request.auth.uid in existing().viewerUids) &&
+                       incoming().diff(existing()).affectedKeys().hasOnly(['availableKgMilli', 'allocatedKgMilli', 'soldKgMilli', 'rejectedKgMilli', 'disposedKgMilli', 'status', 'viewerUids', 'updatedAt']);
+      allow delete: if false;
+    }
+
+    match /compost_batches/{batchId} {
+      allow get: if isValidId(batchId) && isSignedIn() && (request.auth.uid in resource.data.viewerUids || isAdmin());
+      allow list: if isBootstrapAdmin() || (isSignedIn() && request.auth.uid in resource.data.viewerUids);
+      allow create: if isValidId(batchId) && isSignedIn() && isValidCompostBatch(incoming()) &&
+                       incoming().operatorUid == request.auth.uid &&
+                       request.auth.uid in incoming().viewerUids;
+      allow update: if isValidId(batchId) && isSignedIn() && isValidCompostBatch(incoming()) &&
+                       incoming().createdAt == existing().createdAt &&
+                       incoming().operatorUid == existing().operatorUid &&
+                       (isAdmin() || request.auth.uid in existing().viewerUids) &&
+                       incoming().diff(existing()).affectedKeys().hasOnly(['moisturePctMilli', 'temperatureCelsiusMilli', 'turningCount', 'rejectedKgMilli', 'lossKgMilli', 'outputCompostKgMilli', 'soldCompostKgMilli', 'processingCostUgxMinor', 'status', 'approvedByUid', 'viewerUids', 'updatedAt']);
+      allow delete: if false;
+    }
+
+    match /waste_sales/{saleId} {
+      allow get: if isValidId(saleId) && isSignedIn() && (request.auth.uid in resource.data.viewerUids || isAdmin());
+      allow list: if isBootstrapAdmin() || (isSignedIn() && request.auth.uid in resource.data.viewerUids);
+      allow create: if isValidId(saleId) && isSignedIn() && isValidWasteSale(incoming()) &&
+                       incoming().ownerUid == request.auth.uid &&
+                       request.auth.uid in incoming().viewerUids;
+      allow update: if isValidId(saleId) && isSignedIn() && isValidWasteSale(incoming()) &&
+                       incoming().createdAt == existing().createdAt &&
+                       incoming().saleRef == existing().saleRef &&
+                       (isAdmin() || request.auth.uid in existing().viewerUids) &&
+                       incoming().diff(existing()).affectedKeys().hasOnly(['confirmedSoldKgMilli', 'rejectedKgMilli', 'rejectionReason', 'totalInvoiceUgxMinor', 'paidUgxMinor', 'healthcareAccruedUgxMinor', 'healthcareFundedUgxMinor', 'status', 'viewerUids', 'updatedAt']);
+      allow delete: if false;
+    }
+
+    // DOUBLE-ENTRY JOURNAL: Immutable once POSTED; only admin may mark POSTED -> REVERSED alongside reversal entry
+    match /journal_entries/{entryId} {
+      allow get: if isValidId(entryId) && isSignedIn() && (request.auth.uid in resource.data.viewerUids || isAdmin());
+      allow list: if isBootstrapAdmin() || (isSignedIn() && request.auth.uid in resource.data.viewerUids);
+      allow create: if isValidId(entryId) && isSignedIn() && isValidJournalEntry(incoming()) &&
+                       incoming().postedByUid == request.auth.uid &&
+                       incoming().status == 'POSTED' &&
+                       request.auth.uid in incoming().viewerUids;
+      allow update: if isValidId(entryId) && isAdmin() && isValidJournalEntry(incoming()) &&
+                       existing().status == 'POSTED' &&
+                       incoming().status == 'REVERSED' &&
+                       incoming().totalDebitsUgxMinor == existing().totalDebitsUgxMinor &&
+                       incoming().totalCreditsUgxMinor == existing().totalCreditsUgxMinor &&
+                       incoming().createdAt == existing().createdAt &&
+                       incoming().diff(existing()).affectedKeys().hasOnly(['status', 'reversedEntryId']);
+      allow delete: if false;
+    }
+
+    match /journal_lines/{lineId} {
+      allow get: if isValidId(lineId) && isSignedIn() && (request.auth.uid in resource.data.viewerUids || isAdmin());
+      allow list: if isBootstrapAdmin() || (isSignedIn() && request.auth.uid in resource.data.viewerUids);
+      allow create: if isValidId(lineId) && isSignedIn() && isValidJournalLine(incoming()) &&
+                       incoming().postedByUid == request.auth.uid &&
+                       request.auth.uid in incoming().viewerUids;
+      allow update, delete: if false;
+    }
+
+    match /picker_earnings/{earningId} {
+      allow get: if isValidId(earningId) && isSignedIn() && (request.auth.uid == resource.data.pickerUid || request.auth.uid in resource.data.viewerUids || isAdmin());
+      allow list: if isBootstrapAdmin() || (isSignedIn() && (resource.data.pickerUid == request.auth.uid || request.auth.uid in resource.data.viewerUids));
+      allow create: if isValidId(earningId) && isSignedIn() && isValidPickerEarning(incoming()) &&
+                       incoming().ownerUid == request.auth.uid &&
+                       request.auth.uid in incoming().viewerUids;
+      allow update: if isValidId(earningId) && isSignedIn() && isValidPickerEarning(incoming()) &&
+                       incoming().createdAt == existing().createdAt &&
+                       incoming().amountUgxMinor == existing().amountUgxMinor &&
+                       incoming().pickerUid == existing().pickerUid &&
+                       existing().payoutStatus != 'SETTLED' &&
+                       (isAdmin() || request.auth.uid in existing().viewerUids) &&
+                       incoming().diff(existing()).affectedKeys().hasOnly(['payoutStatus', 'payoutId', 'updatedAt']);
+      allow delete: if false;
+    }
+
+    match /picker_payouts/{payoutId} {
+      allow get: if isValidId(payoutId) && isSignedIn() && (request.auth.uid == resource.data.pickerUid || request.auth.uid in resource.data.viewerUids || isAdmin());
+      allow list: if isBootstrapAdmin() || (isSignedIn() && (resource.data.pickerUid == request.auth.uid || request.auth.uid in resource.data.viewerUids));
+      allow create: if isValidId(payoutId) && isSignedIn() && isValidPickerPayout(incoming()) &&
+                       incoming().makerUid == request.auth.uid &&
+                       incoming().lifecycleStatus == 'CREATED' &&
+                       request.auth.uid in incoming().viewerUids;
+      allow update: if isValidId(payoutId) && isSignedIn() && isValidPickerPayout(incoming()) &&
+                       incoming().createdAt == existing().createdAt &&
+                       incoming().idempotencyKey == existing().idempotencyKey &&
+                       incoming().amountUgxMinor == existing().amountUgxMinor &&
+                       incoming().makerUid == existing().makerUid &&
+                       existing().lifecycleStatus != 'SUCCESS' &&
+                       (
+                         isAdmin() ||
+                         (request.auth.uid in existing().viewerUids &&
+                          (incoming().lifecycleStatus != 'SUBMITTED' || request.auth.uid != existing().makerUid))
+                       ) &&
+                       incoming().diff(existing()).affectedKeys().hasOnly(['lifecycleStatus', 'providerRef', 'failureCode', 'failureReason', 'reconciliationStatus', 'checkerUid', 'updatedAt']);
+      allow delete: if false;
+    }
+
+    match /healthcare_clinics/{clinicId} {
+      allow get: if isValidId(clinicId) && isSignedIn() && (resource.data.published == true || resource.data.ownerUid == request.auth.uid || isAdmin());
+      allow list: if isBootstrapAdmin() || (isSignedIn() && (resource.data.published == true || resource.data.ownerUid == request.auth.uid));
+      allow create: if isValidId(clinicId) && isSignedIn() && isValidHealthcareClinic(incoming()) &&
+                       (isAdmin() || (incoming().ownerUid == request.auth.uid && incoming().published == false));
+      allow update: if isValidId(clinicId) && isAdmin() && isValidHealthcareClinic(incoming()) &&
+                       incoming().createdAt == existing().createdAt &&
+                       incoming().diff(existing()).affectedKeys().hasOnly(['clinicName', 'location', 'servicesSummary', 'published', 'updatedAt']);
+      allow delete: if false;
+    }
+
+    match /healthcare_vouchers/{voucherId} {
+      allow get: if isValidId(voucherId) && isSignedIn() && (request.auth.uid == resource.data.pickerUid || request.auth.uid in resource.data.viewerUids || isAdmin());
+      allow list: if isBootstrapAdmin() || (isSignedIn() && (resource.data.pickerUid == request.auth.uid || request.auth.uid in resource.data.viewerUids));
+      allow create: if isValidId(voucherId) && isSignedIn() && isValidHealthcareVoucher(incoming()) &&
+                       incoming().ownerUid == request.auth.uid &&
+                       incoming().status == 'ISSUED' &&
+                       request.auth.uid in incoming().viewerUids;
+      allow update: if isValidId(voucherId) && isSignedIn() && isValidHealthcareVoucher(incoming()) &&
+                       incoming().createdAt == existing().createdAt &&
+                       incoming().voucherCode == existing().voucherCode &&
+                       incoming().maxAmountUgxMinor == existing().maxAmountUgxMinor &&
+                       existing().status == 'ISSUED' &&
+                       (isAdmin() || request.auth.uid in existing().viewerUids) &&
+                       incoming().diff(existing()).affectedKeys().hasOnly(['status', 'redeemedByClinicUid', 'viewerUids', 'updatedAt']);
+      allow delete: if false;
+    }
+
+    match /healthcare_claims/{claimId} {
+      allow get: if isValidId(claimId) && isSignedIn() && (request.auth.uid in resource.data.viewerUids || isAdmin());
+      allow list: if isBootstrapAdmin() || (isSignedIn() && request.auth.uid in resource.data.viewerUids);
+      allow create: if isValidId(claimId) && isSignedIn() && isValidHealthcareClaim(incoming()) &&
+                       incoming().clinicOwnerUid == request.auth.uid &&
+                       incoming().status == 'SUBMITTED' &&
+                       request.auth.uid in incoming().viewerUids;
+      allow update: if isValidId(claimId) && isSignedIn() && isValidHealthcareClaim(incoming()) &&
+                       incoming().createdAt == existing().createdAt &&
+                       incoming().claimedAmountUgxMinor == existing().claimedAmountUgxMinor &&
+                       existing().status != 'PAID' &&
+                       (isAdmin() || (request.auth.uid in existing().viewerUids && request.auth.uid != existing().clinicOwnerUid)) &&
+                       incoming().diff(existing()).affectedKeys().hasOnly(['status', 'reviewedByUid', 'updatedAt']);
+      allow delete: if false;
+    }
+
+    match /households/{householdId} {
+      allow get: if isValidId(householdId) && isSignedIn() && (request.auth.uid == resource.data.ownerUid || request.auth.uid in resource.data.viewerUids || isAdmin());
+      allow list: if isBootstrapAdmin() || (isSignedIn() && (resource.data.ownerUid == request.auth.uid || request.auth.uid in resource.data.viewerUids));
+      allow create: if isValidId(householdId) && isSignedIn() && isValidHousehold(incoming()) &&
+                       incoming().ownerUid == request.auth.uid &&
+                       request.auth.uid in incoming().viewerUids;
+      allow update: if isValidId(householdId) && isSignedIn() && isValidHousehold(incoming()) &&
+                       incoming().createdAt == existing().createdAt &&
+                       incoming().ownerUid == existing().ownerUid &&
+                       (isAdmin() || request.auth.uid in existing().viewerUids) &&
+                       incoming().diff(existing()).affectedKeys().hasOnly(['memberCount', 'collectionDay', 'pointsBalance', 'contaminationCount', 'viewerUids', 'updatedAt']);
+      allow delete: if false;
+    }
+
+    match /disputes/{disputeId} {
+      allow get: if isValidId(disputeId) && isSignedIn() && (request.auth.uid == resource.data.reporterUid || request.auth.uid in resource.data.viewerUids || isAdmin());
+      allow list: if isBootstrapAdmin() || (isSignedIn() && (resource.data.reporterUid == request.auth.uid || request.auth.uid in resource.data.viewerUids));
+      allow create: if isValidId(disputeId) && isSignedIn() && isValidDispute(incoming()) &&
+                       incoming().reporterUid == request.auth.uid &&
+                       incoming().status == 'OPEN' &&
+                       request.auth.uid in incoming().viewerUids;
+      allow update: if isValidId(disputeId) && isSignedIn() && isValidDispute(incoming()) &&
+                       incoming().createdAt == existing().createdAt &&
+                       incoming().reporterUid == existing().reporterUid &&
+                       existing().status != 'CLOSED' &&
+                       (isAdmin() || request.auth.uid in existing().viewerUids) &&
+                       incoming().diff(existing()).affectedKeys().hasOnly(['investigatorUid', 'status', 'resolutionNotes', 'viewerUids', 'updatedAt']);
+      allow delete: if false;
+    }
+
+    match /approval_requests/{requestId} {
+      allow get: if isValidId(requestId) && isSignedIn() && (request.auth.uid in resource.data.viewerUids || isAdmin());
+      allow list: if isBootstrapAdmin() || (isSignedIn() && request.auth.uid in resource.data.viewerUids);
+      allow create: if isValidId(requestId) && isSignedIn() && isValidApprovalRequest(incoming()) &&
+                       incoming().makerUid == request.auth.uid &&
+                       incoming().status == 'PENDING' &&
+                       request.auth.uid in incoming().viewerUids;
+      allow update: if isValidId(requestId) && isSignedIn() && isValidApprovalRequest(incoming()) &&
+                       incoming().createdAt == existing().createdAt &&
+                       incoming().makerUid == existing().makerUid &&
+                       existing().status == 'PENDING' &&
+                       request.auth.uid != existing().makerUid &&
+                       incoming().checkerUid == request.auth.uid &&
+                       incoming().status in ['APPROVED', 'REJECTED'] &&
+                       (isAdmin() || request.auth.uid in existing().viewerUids) &&
+                       incoming().diff(existing()).affectedKeys().hasOnly(['status', 'checkerUid', 'rejectionReason', 'updatedAt']);
+      allow delete: if false;
+    }
+
+    match /audit_logs/{logId} {
+      allow get: if isValidId(logId) && isSignedIn() && (request.auth.uid in resource.data.viewerUids || isAdmin());
+      allow list: if isBootstrapAdmin() || (isSignedIn() && request.auth.uid in resource.data.viewerUids);
+      allow create: if isValidId(logId) && isSignedIn() && isValidAuditLog(incoming()) &&
+                       incoming().actorUid == request.auth.uid &&
+                       request.auth.uid in incoming().viewerUids;
+      allow update, delete: if false;
+    }
+  }
+}

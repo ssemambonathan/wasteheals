@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="360dp"
+    android:height="180dp"
+    android:viewportWidth="360"
+    android:viewportHeight="180">
+    <path android:pathData="M0,0H360V180H0Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="0"
+                android:startY="0"
+                android:endX="360"
+                android:endY="180"
+                android:type="linear">
+                <item android:offset="0" android:color="#0A4529" />
+                <item android:offset="0.65" android:color="#0E5A36" />
+                <item android:offset="1" android:color="#196F44" />
+            </gradient>
+        </aapt:attr>
+    </path>
+    <!-- Soft Kampala hillside silhouettes -->
+    <path
+        android:fillColor="#16804D"
+        android:fillAlpha="0.55"
+        android:pathData="M0,128 Q90,92 180,122 T360,114 L360,180 L0,180 Z" />
+    <path
+        android:fillColor="#083821"
+        android:fillAlpha="0.65"
+        android:pathData="M0,146 Q110,122 230,148 T360,138 L360,180 L0,180 Z" />
+    <!-- Warm terracotta circular sun / hub ring -->
+    <path
+        android:fillColor="#B8522E"
+        android:fillAlpha="0.88"
+        android:pathData="M292,54 m-26,0 a26,26 0 1,0 52,0 a26,26 0 1,0 -52,0" />
+    <!-- Savanna gold circular economy orbital arc -->
+    <path
+        android:strokeColor="#F4B942"
+        android:strokeWidth="3"
+        android:strokeAlpha="0.8"
+        android:fillColor="#00000000"
+        android:pathData="M250,54 A42,42 0 1,1 312,90" />
+    <!-- Hub emblem cross -->
+    <path
+        android:fillColor="#F6F8F6"
+        android:pathData="M287,42 H297 V49 H304 V59 H297 V66 H287 V59 H280 V49 H287 Z" />
+</vector>

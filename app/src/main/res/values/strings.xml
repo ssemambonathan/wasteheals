@@ -1,3 +1,15 @@
 <resources>
     <string name="app_name">WasteHeals</string>
+    <string name="app_tagline">Every kilogram you collect, protects your health.</string>
+    <string name="hero_kampala_desc">WasteHeals Kampala Circular Economy Hub Illustration</string>
+    <string name="kampala_pilot_badge">KAMPALA PILOT • UGX</string>
+    <string name="auth_pillars_title">Production Circular &amp; Financial Controls</string>
+    <string name="sign_in_with_google">Sign in with Google</string>
+    <string name="signing_in_label">Verifying credentials…</string>
+    <string name="auth_security_footnote">Zero-trust Google Sign-In via Jetpack Credential Manager. Offline field records sync idempotently and never bypass hub verification.</string>
+    <string name="nav_home">Overview</string>
+    <string name="nav_collect">Collect</string>
+    <string name="nav_hub_market">Hub &amp; Sales</string>
+    <string name="nav_finance">Finance</string>
+    <string name="nav_health_care">Health &amp; Care</string>
 </resources>
