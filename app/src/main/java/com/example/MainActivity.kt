@@ -21,6 +21,7 @@ import androidx.compose.material.icons.filled.Dashboard
 import androidx.compose.material.icons.filled.HealthAndSafety
 import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.Scale
+import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -30,6 +31,7 @@ import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationRail
 import androidx.compose.material3.NavigationRailItem
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -38,13 +40,11 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -64,8 +64,8 @@ import com.example.data.remote.WasteHealsCatalogRepository
 import com.example.data.remote.WasteHealsFinanceHealthRepository
 import com.example.data.remote.WasteHealsOperationsRepository
 import com.example.ui.auth.AuthScreen
-import com.example.ui.auth.authStateFlow
-import com.example.ui.auth.signOutWasteHeals
+import com.example.ui.auth.AuthSessionState
+import com.example.ui.auth.AuthViewModel
 import com.example.ui.components.EmptyStateCard
 import com.example.ui.components.RoleSwitcherSheet
 import com.example.ui.components.RoleWorkspaceChip
@@ -77,8 +77,6 @@ import com.example.ui.screens.WorkspaceHomeScreen
 import com.example.ui.state.UiState
 import com.example.ui.state.WasteHealsViewModel
 import com.example.ui.theme.WasteHealsTheme
-import com.google.firebase.Firebase
-import com.google.firebase.auth.auth
 
 class MainActivity : ComponentActivity() {
   override fun onCreate(savedInstanceState: Bundle?) {
@@ -108,25 +106,83 @@ private val NAV_TABS = listOf(
 
 @Composable
 fun WasteHealsRoot() {
-  val auth = remember { Firebase.auth }
-  val currentUser by auth.authStateFlow().collectAsState(initial = auth.currentUser)
+  val context = LocalContext.current
+  val credentialManager = remember(context) { CredentialManager.create(context) }
+  val authViewModel: AuthViewModel = viewModel(
+    factory = AuthViewModel.factory(context.applicationContext)
+  )
+  val authState by authViewModel.uiState.collectAsStateWithLifecycle()
 
-  val activeUser = currentUser
-  if (activeUser == null) {
-    AuthScreen(onAuthSuccess = { })
-  } else {
-    key(activeUser.uid) {
-      WasteHealsAuthenticatedScaffold(uid = activeUser.uid)
+  when (val session = authState.sessionState) {
+    is AuthSessionState.Unauthenticated,
+    is AuthSessionState.Loading -> AuthScreen(authViewModel = authViewModel)
+    is AuthSessionState.SyncingProfile -> {
+      Column(
+        modifier = Modifier.fillMaxSize(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+      ) {
+        CircularProgressIndicator()
+        Text(
+          text = "Initializing Firestore user profile…",
+          style = MaterialTheme.typography.bodyMedium,
+          modifier = Modifier.padding(top = 12.dp)
+        )
+      }
+    }
+    is AuthSessionState.Error -> {
+      if (session.uid == null) {
+        AuthScreen(authViewModel = authViewModel)
+      } else {
+        Column(
+          modifier = Modifier
+            .fillMaxSize()
+            .padding(24.dp),
+          horizontalAlignment = Alignment.CenterHorizontally,
+          verticalArrangement = Arrangement.Center
+        ) {
+          EmptyStateCard(
+            icon = Icons.Filled.AccountBalance,
+            title = "Profile Setup Error",
+            description = session.message
+          )
+          Button(
+            onClick = { authViewModel.retryUserDocumentCreation() },
+            modifier = Modifier
+              .padding(top = 16.dp)
+              .testTag("retry_profile_sync_button")
+          ) {
+            Text("Retry Firestore Profile Setup")
+          }
+          OutlinedButton(
+            onClick = { authViewModel.signOut(credentialManager) },
+            modifier = Modifier
+              .padding(top = 8.dp)
+              .testTag("sign_out_button")
+          ) {
+            Text("Sign Out")
+          }
+        }
+      }
+    }
+    is AuthSessionState.Authenticated -> {
+      key(session.uid) {
+        WasteHealsAuthenticatedScaffold(
+          uid = session.uid,
+          onSignOut = { authViewModel.signOut(credentialManager) }
+        )
+      }
     }
   }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun WasteHealsAuthenticatedScaffold(uid: String) {
+private fun WasteHealsAuthenticatedScaffold(
+  uid: String,
+  onSignOut: () -> Unit
+) {
   val context = LocalContext.current
-  val scope = rememberCoroutineScope()
-  val credentialManager = remember(context) { CredentialManager.create(context) }
 
   val vm: WasteHealsViewModel = viewModel(
     key = uid,
@@ -200,7 +256,7 @@ private fun WasteHealsAuthenticatedScaffold(uid: String) {
               )
             }
             IconButton(
-              onClick = { signOutWasteHeals(credentialManager, scope) },
+              onClick = onSignOut,
               modifier = Modifier.testTag("sign_out_button")
             ) {
               Icon(

@@ -47,7 +47,6 @@ import com.example.domain.model.VerificationStatus
 import com.example.domain.model.WasteDelivery
 import com.example.domain.model.WasteMaterial
 import com.example.domain.model.WasteSale
-import com.example.ui.auth.PendingAuthOnboarding
 import com.google.firebase.firestore.FirebaseFirestoreException
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
@@ -193,16 +192,6 @@ class WasteHealsViewModel(
 
   private val _isBusy = MutableStateFlow(false)
   val isBusy: StateFlow<Boolean> = _isBusy.asStateFlow()
-
-  init {
-    viewModelScope.launch {
-      val (pendingName, pendingRole) = PendingAuthOnboarding.consume()
-      catalogRepo.ensureUserOnboarded(
-        preferredDisplayName = pendingName,
-        requestedRoleKey = pendingRole
-      ).onFailure { _feedback.value = "Onboarding warning: ${it.localizedMessage}" }
-    }
-  }
 
   private fun <T> Flow<T>.safeStream(label: String): Flow<T> = catch { error ->
     val firestoreErr = generateSequence(error) { it.cause }

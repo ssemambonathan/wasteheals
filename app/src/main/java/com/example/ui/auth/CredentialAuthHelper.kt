@@ -121,7 +121,7 @@ fun onGoogleSignInClicked(
     .build()
   scope.launch {
     try {
-      val activityContext = context.findActivity() ?: context
+      val activityContext = context.findHostActivity() ?: context
       val cred = credentialManager.getCredential(activityContext, request).credential
       if (cred is CustomCredential && cred.type == TYPE_GOOGLE_ID_TOKEN_CREDENTIAL) {
         val token = GoogleIdTokenCredential.createFrom(cred.data).idToken
@@ -247,7 +247,7 @@ fun startPhoneVerification(
   onAutoSignedIn: () -> Unit,
   onError: (String) -> Unit
 ) {
-  val activity = context.findActivity()
+  val activity = context.findHostActivity()
   if (activity == null) {
     onError("Phone verification requires an active Android Activity context.")
     return
@@ -343,9 +343,9 @@ fun signOutWasteHeals(
   }
 }
 
-private tailrec fun Context.findActivity(): Activity? = when (this) {
+internal tailrec fun Context.findHostActivity(): Activity? = when (this) {
   is Activity -> this
-  is ContextWrapper -> baseContext.findActivity()
+  is ContextWrapper -> baseContext.findHostActivity()
   else -> null
 }
 

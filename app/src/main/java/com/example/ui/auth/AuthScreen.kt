@@ -56,7 +56,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -73,48 +72,41 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.credentials.CredentialManager
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.R
 import com.example.domain.model.UserRoleKey
-import com.google.firebase.auth.PhoneAuthProvider
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AuthScreen(onAuthSuccess: () -> Unit) {
+fun AuthScreen(
+  authViewModel: AuthViewModel
+) {
   val context = LocalContext.current
-  val scope = rememberCoroutineScope()
   val credentialManager = remember(context) { CredentialManager.create(context) }
+  val uiState by authViewModel.uiState.collectAsStateWithLifecycle()
 
-  var authTab by remember { mutableIntStateOf(0) } // 0 = Email, 1 = Phone
+  var authTab by remember { mutableIntStateOf(0) } // 0 = Email, 1 = Phone OTP
   var isSignUpMode by remember { mutableStateOf(false) }
-  var isLoading by remember { mutableStateOf(false) }
-  var errorMessage by remember { mutableStateOf<String?>(null) }
-  var infoMessage by remember { mutableStateOf<String?>(null) }
 
-  // Email fields
   var displayName by remember { mutableStateOf("") }
   var email by remember { mutableStateOf("") }
   var password by remember { mutableStateOf("") }
   var passwordVisible by remember { mutableStateOf(false) }
 
-  // Phone OTP fields
   var phoneNumber by remember { mutableStateOf("+256") }
   var otpCode by remember { mutableStateOf("") }
-  var verificationId by remember { mutableStateOf<String?>(null) }
-  var resendToken by remember { mutableStateOf<PhoneAuthProvider.ForceResendingToken?>(null) }
 
-  // Requested operational role on sign-up (server enforces picker by default; admin assigned via RBAC)
   var requestedRole by remember { mutableStateOf(UserRoleKey.PICKER) }
   val selfSelectableRoles = listOf(UserRoleKey.PICKER, UserRoleKey.COLLECTOR, UserRoleKey.HEALTH_PROVIDER)
 
   LaunchedEffect(Unit) {
-    attemptAutoSignIn(
-      context = context,
-      credentialManager = credentialManager,
-      onAuthSuccess = onAuthSuccess,
-      onUnauthenticated = { },
-      scope = scope
-    )
+    authViewModel.attemptSilentGoogleSignIn(context, credentialManager)
   }
+
+  val isLoading = uiState.isLoading
+  val verificationId = uiState.verificationId
+  val errorMessage = uiState.errorMessage
+  val infoMessage = uiState.infoMessage
 
   Box(
     modifier = Modifier
@@ -194,8 +186,7 @@ fun AuthScreen(onAuthSuccess: () -> Unit) {
               selected = authTab == 0,
               onClick = {
                 authTab = 0
-                errorMessage = null
-                infoMessage = null
+                authViewModel.clearMessages()
               },
               icon = { Icon(Icons.Filled.Email, contentDescription = null, modifier = Modifier.size(18.dp)) },
               text = { Text("Email") },
@@ -205,8 +196,7 @@ fun AuthScreen(onAuthSuccess: () -> Unit) {
               selected = authTab == 1,
               onClick = {
                 authTab = 1
-                errorMessage = null
-                infoMessage = null
+                authViewModel.clearMessages()
               },
               icon = { Icon(Icons.Filled.Phone, contentDescription = null, modifier = Modifier.size(18.dp)) },
               text = { Text("Phone OTP") },
@@ -221,13 +211,13 @@ fun AuthScreen(onAuthSuccess: () -> Unit) {
             ) {
               FilterChip(
                 selected = !isSignUpMode,
-                onClick = { isSignUpMode = false; errorMessage = null },
+                onClick = { isSignUpMode = false; authViewModel.clearMessages() },
                 label = { Text("Sign In") },
                 modifier = Modifier.testTag("email_mode_signin")
               )
               FilterChip(
                 selected = isSignUpMode,
-                onClick = { isSignUpMode = true; errorMessage = null },
+                onClick = { isSignUpMode = true; authViewModel.clearMessages() },
                 label = { Text("Create Account") },
                 modifier = Modifier.testTag("email_mode_signup")
               )
@@ -302,16 +292,7 @@ fun AuthScreen(onAuthSuccess: () -> Unit) {
             if (!isSignUpMode) {
               Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                 TextButton(
-                  onClick = {
-                    errorMessage = null
-                    infoMessage = null
-                    sendEmailPasswordReset(
-                      email = email,
-                      scope = scope,
-                      onSent = { msg -> infoMessage = msg },
-                      onError = { msg -> errorMessage = msg }
-                    )
-                  },
+                  onClick = { authViewModel.sendPasswordReset(email) },
                   enabled = !isLoading
                 ) {
                   Text("Forgot password?")
@@ -321,27 +302,10 @@ fun AuthScreen(onAuthSuccess: () -> Unit) {
 
             Button(
               onClick = {
-                errorMessage = null
-                infoMessage = null
-                isLoading = true
                 if (isSignUpMode) {
-                  createEmailAccount(
-                    displayName = displayName,
-                    email = email,
-                    password = password,
-                    requestedRole = requestedRole,
-                    scope = scope,
-                    onAuthSuccess = { isLoading = false; onAuthSuccess() },
-                    onAuthError = { msg -> isLoading = false; errorMessage = msg }
-                  )
+                  authViewModel.createAccountWithEmail(displayName, email, password, requestedRole)
                 } else {
-                  signInWithEmailCredential(
-                    email = email,
-                    password = password,
-                    scope = scope,
-                    onAuthSuccess = { isLoading = false; onAuthSuccess() },
-                    onAuthError = { msg -> isLoading = false; errorMessage = msg }
-                  )
+                  authViewModel.signInWithEmail(email, password)
                 }
               },
               enabled = !isLoading,
@@ -364,7 +328,6 @@ fun AuthScreen(onAuthSuccess: () -> Unit) {
               }
             }
           } else {
-            // Phone Number Sign-In (OTP)
             OutlinedTextField(
               value = phoneNumber,
               onValueChange = { phoneNumber = it },
@@ -401,30 +364,7 @@ fun AuthScreen(onAuthSuccess: () -> Unit) {
             if (verificationId == null) {
               Button(
                 onClick = {
-                  errorMessage = null
-                  infoMessage = null
-                  isLoading = true
-                  startPhoneVerification(
-                    context = context,
-                    phoneRaw = phoneNumber,
-                    requestedRole = requestedRole,
-                    resendToken = resendToken,
-                    scope = scope,
-                    onCodeSent = { vId, token ->
-                      isLoading = false
-                      verificationId = vId
-                      resendToken = token
-                      infoMessage = "Verification SMS sent to ${normalizeUgandaE164(phoneNumber)}."
-                    },
-                    onAutoSignedIn = {
-                      isLoading = false
-                      onAuthSuccess()
-                    },
-                    onError = { msg ->
-                      isLoading = false
-                      errorMessage = msg
-                    }
-                  )
+                  authViewModel.startPhoneVerification(context, phoneNumber, requestedRole)
                 },
                 enabled = !isLoading,
                 modifier = Modifier
@@ -465,9 +405,8 @@ fun AuthScreen(onAuthSuccess: () -> Unit) {
               ) {
                 OutlinedButton(
                   onClick = {
-                    verificationId = null
                     otpCode = ""
-                    infoMessage = null
+                    authViewModel.resetPhoneVerification()
                   },
                   enabled = !isLoading,
                   modifier = Modifier.weight(1f)
@@ -475,19 +414,7 @@ fun AuthScreen(onAuthSuccess: () -> Unit) {
                   Text("Change Number")
                 }
                 Button(
-                  onClick = {
-                    val vId = verificationId ?: return@Button
-                    errorMessage = null
-                    isLoading = true
-                    verifyPhoneOtpCode(
-                      verificationId = vId,
-                      smsCode = otpCode,
-                      requestedRole = requestedRole,
-                      scope = scope,
-                      onAuthSuccess = { isLoading = false; onAuthSuccess() },
-                      onError = { msg -> isLoading = false; errorMessage = msg }
-                    )
-                  },
+                  onClick = { authViewModel.verifyPhoneOtp(otpCode, requestedRole) },
                   enabled = !isLoading && otpCode.length >= 6,
                   modifier = Modifier
                     .weight(1.4f)
@@ -508,7 +435,7 @@ fun AuthScreen(onAuthSuccess: () -> Unit) {
           modifier = Modifier.fillMaxWidth()
         ) {
           Text(
-            text = infoMessage!!,
+            text = infoMessage,
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onPrimaryContainer,
             modifier = Modifier.padding(12.dp)
@@ -520,10 +447,12 @@ fun AuthScreen(onAuthSuccess: () -> Unit) {
         Surface(
           color = MaterialTheme.colorScheme.errorContainer,
           shape = RoundedCornerShape(12.dp),
-          modifier = Modifier.fillMaxWidth()
+          modifier = Modifier
+            .fillMaxWidth()
+            .testTag("auth_error_banner")
         ) {
           Text(
-            text = errorMessage!!,
+            text = errorMessage,
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onErrorContainer,
             modifier = Modifier.padding(12.dp)
@@ -542,25 +471,7 @@ fun AuthScreen(onAuthSuccess: () -> Unit) {
       }
 
       OutlinedButton(
-        onClick = {
-          errorMessage = null
-          infoMessage = null
-          isLoading = true
-          onGoogleSignInClicked(
-            context = context,
-            credentialManager = credentialManager,
-            onAuthSuccess = {
-              isLoading = false
-              onAuthSuccess()
-            },
-            onAuthError = { msg ->
-              isLoading = false
-              errorMessage = msg
-            },
-            scope = scope,
-            onAuthCancelled = { isLoading = false }
-          )
-        },
+        onClick = { authViewModel.signInWithGoogle(context, credentialManager) },
         enabled = !isLoading,
         modifier = Modifier
           .fillMaxWidth()
