@@ -7,9 +7,9 @@
     <string name="sign_in_with_google">Sign in with Google</string>
     <string name="signing_in_label">Verifying credentials…</string>
     <string name="auth_security_footnote">Zero-trust Google Sign-In via Jetpack Credential Manager. Offline field records sync idempotently and never bypass hub verification.</string>
-    <string name="nav_home">Overview</string>
-    <string name="nav_collect">Collect</string>
+    <string name="nav_home">Dashboard</string>
+    <string name="nav_collect">Collection</string>
     <string name="nav_hub_market">Hub &amp; Sales</string>
-    <string name="nav_finance">Finance</string>
-    <string name="nav_health_care">Health &amp; Care</string>
+    <string name="nav_finance">Ledger</string>
+    <string name="nav_health_care">Healthcare</string>
 </resources>

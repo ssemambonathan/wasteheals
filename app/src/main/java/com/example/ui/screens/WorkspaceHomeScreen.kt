@@ -2,6 +2,7 @@ package com.example.ui.screens
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,11 +13,14 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.AccountBalance
 import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.Compost
 import androidx.compose.material.icons.filled.Eco
@@ -40,6 +44,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
@@ -83,7 +90,9 @@ fun WorkspaceHomeScreen(
   val pendingApprovals = snap.approvals.count { it.status == ApprovalStatus.PENDING.name }
 
   LazyColumn(
-    modifier = Modifier.fillMaxSize(),
+    modifier = Modifier
+      .fillMaxSize()
+      .testTag("workspace_home_list"),
     contentPadding = PaddingValues(16.dp),
     verticalArrangement = Arrangement.spacedBy(14.dp)
   ) {
@@ -100,6 +109,18 @@ fun WorkspaceHomeScreen(
           modifier = Modifier.fillMaxSize(),
           contentScale = ContentScale.Crop
         )
+        Box(
+          modifier = Modifier
+            .fillMaxSize()
+            .background(
+              Brush.verticalGradient(
+                listOf(
+                  Color.Black.copy(alpha = 0.20f),
+                  Color.Black.copy(alpha = 0.72f)
+                )
+              )
+            )
+        )
         Column(
           modifier = Modifier
             .align(Alignment.BottomStart)
@@ -114,12 +135,12 @@ fun WorkspaceHomeScreen(
           Text(
             text = "Welcome, ${snap.profile?.displayName ?: "Member"}",
             style = MaterialTheme.typography.headlineSmall,
-            color = MaterialTheme.colorScheme.onPrimary
+            color = Color.White
           )
           Text(
             text = "HC Rate: UGX ${snap.policy.healthcareUgxPerKg}/kg sold • Reward Pool: ${snap.policy.pickerRewardPct}% surplus",
             style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.92f)
+            color = Color.White.copy(alpha = 0.92f)
           )
         }
       }
@@ -160,6 +181,46 @@ fun WorkspaceHomeScreen(
             }
           }
         }
+      }
+    }
+
+    // Core Operational Views Quick Switch
+    item {
+      SectionHeader(
+        title = "Core Platform Views",
+        subtitle = "Jump directly to Collection, Financial Ledger, or Healthcare Services"
+      )
+    }
+
+    item {
+      Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        DashboardModuleCard(
+          title = "Waste Collection & Weighing",
+          subtitle = "${MoneyAndWeight.formatKg(snap.totalAcceptedKgMilli)} verified • $pendingSyncCount offline queued",
+          badgeText = if (pendingVerifCount > 0) "$pendingVerifCount pending" else "${snap.hubs.size} hubs",
+          icon = Icons.Filled.Scale,
+          accentColor = MaterialTheme.colorScheme.primary,
+          testTag = "dashboard_card_collection",
+          onClick = { onNavigateTab(1) }
+        )
+        DashboardModuleCard(
+          title = "Financial Ledger & MoMo",
+          subtitle = "Cash ${MoneyAndWeight.formatUgx(ledger.operatingCashUgx)} • ${snap.journalEntries.size} balanced journal(s)",
+          badgeText = if (ledger.isBalanced) "Balanced" else "Check",
+          icon = Icons.Filled.AccountBalance,
+          accentColor = MaterialTheme.colorScheme.secondary,
+          testTag = "dashboard_card_ledger",
+          onClick = { onNavigateTab(3) }
+        )
+        DashboardModuleCard(
+          title = "Healthcare Services (UGX ${snap.policy.healthcareUgxPerKg}/kg)",
+          subtitle = "Funded ${MoneyAndWeight.formatUgx(ledger.restrictedHealthcareCashUgx)} • ${snap.vouchers.size} vouchers, ${snap.clinics.size} clinics",
+          badgeText = "${snap.claims.size} claims",
+          icon = Icons.Filled.HealthAndSafety,
+          accentColor = SuccessGreen,
+          testTag = "dashboard_card_healthcare",
+          onClick = { onNavigateTab(4) }
+        )
       }
     }
 
@@ -403,7 +464,6 @@ fun WorkspaceHomeScreen(
       }
     }
 
-    // Quick Action Navigation
     item {
       Row(
         modifier = Modifier.fillMaxWidth(),
@@ -482,6 +542,67 @@ fun WorkspaceHomeScreen(
           }
         }
       }
+    }
+  }
+}
+
+@Composable
+private fun DashboardModuleCard(
+  title: String,
+  subtitle: String,
+  badgeText: String,
+  icon: ImageVector,
+  accentColor: Color,
+  testTag: String,
+  onClick: () -> Unit
+) {
+  Card(
+    onClick = onClick,
+    shape = RoundedCornerShape(14.dp),
+    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+    modifier = Modifier
+      .fillMaxWidth()
+      .testTag(testTag)
+  ) {
+    Row(
+      modifier = Modifier
+        .fillMaxWidth()
+        .padding(14.dp),
+      verticalAlignment = Alignment.CenterVertically,
+      horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+      Surface(
+        shape = RoundedCornerShape(12.dp),
+        color = accentColor.copy(alpha = 0.14f)
+      ) {
+        Icon(
+          imageVector = icon,
+          contentDescription = null,
+          tint = accentColor,
+          modifier = Modifier
+            .padding(10.dp)
+            .size(22.dp)
+        )
+      }
+      Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Text(text = title, style = MaterialTheme.typography.titleSmall)
+        Text(
+          text = subtitle,
+          style = MaterialTheme.typography.bodySmall,
+          color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+      }
+      StatusPill(
+        text = badgeText,
+        containerColor = accentColor.copy(alpha = 0.14f),
+        contentColor = accentColor
+      )
+      Icon(
+        imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+        contentDescription = "Open $title",
+        tint = MaterialTheme.colorScheme.onSurfaceVariant
+      )
     }
   }
 }
