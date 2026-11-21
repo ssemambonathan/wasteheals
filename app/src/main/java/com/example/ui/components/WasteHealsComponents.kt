@@ -1,6 +1,7 @@
 package com.example.ui.components
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -11,17 +12,16 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material.icons.filled.Badge
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material.icons.filled.SwapHoriz
-import androidx.compose.material.icons.filled.VerifiedUser
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -38,6 +38,7 @@ import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
@@ -61,7 +62,7 @@ fun MetricCard(
 ) {
   Card(
     modifier = modifier,
-    shape = RoundedCornerShape(16.dp),
+    shape = RoundedCornerShape(14.dp),
     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
     border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
   ) {
@@ -75,24 +76,24 @@ fun MetricCard(
         verticalAlignment = Alignment.CenterVertically
       ) {
         Text(
-          text = title,
-          style = MaterialTheme.typography.bodySmall,
+          text = title.uppercase(),
+          style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
           color = MaterialTheme.colorScheme.onSurfaceVariant,
           maxLines = 1,
           overflow = TextOverflow.Ellipsis,
           modifier = Modifier.weight(1f)
         )
         Surface(
-          color = accentColor.copy(alpha = 0.14f),
+          color = accentColor.copy(alpha = 0.12f),
           shape = RoundedCornerShape(8.dp),
-          modifier = Modifier.size(30.dp)
+          modifier = Modifier.size(28.dp)
         ) {
           Box(contentAlignment = Alignment.Center) {
             Icon(
               imageVector = icon,
               contentDescription = title,
               tint = accentColor,
-              modifier = Modifier.size(18.dp)
+              modifier = Modifier.size(16.dp)
             )
           }
         }
@@ -106,11 +107,26 @@ fun MetricCard(
       )
       Text(
         text = subtitle,
-        style = MaterialTheme.typography.labelSmall,
+        style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         maxLines = 2,
         overflow = TextOverflow.Ellipsis
       )
+      Box(
+        modifier = Modifier
+          .fillMaxWidth()
+          .height(3.dp)
+          .clip(RoundedCornerShape(999.dp))
+          .background(accentColor.copy(alpha = 0.22f))
+      ) {
+        Box(
+          modifier = Modifier
+            .fillMaxWidth(0.68f)
+            .height(3.dp)
+            .clip(RoundedCornerShape(999.dp))
+            .background(accentColor)
+        )
+      }
     }
   }
 }
@@ -120,6 +136,7 @@ fun StatusPill(
   text: String,
   containerColor: Color,
   contentColor: Color,
+  showDot: Boolean = false,
   modifier: Modifier = Modifier
 ) {
   Surface(
@@ -127,14 +144,27 @@ fun StatusPill(
     shape = RoundedCornerShape(999.dp),
     modifier = modifier
   ) {
-    Text(
-      text = text,
-      style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
-      color = contentColor,
-      maxLines = 1,
-      overflow = TextOverflow.Ellipsis,
-      modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
-    )
+    Row(
+      modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+      verticalAlignment = Alignment.CenterVertically,
+      horizontalArrangement = Arrangement.spacedBy(5.dp)
+    ) {
+      if (showDot) {
+        Box(
+          modifier = Modifier
+            .size(6.dp)
+            .clip(CircleShape)
+            .background(contentColor)
+        )
+      }
+      Text(
+        text = text,
+        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
+        color = contentColor,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis
+      )
+    }
   }
 }
 
@@ -150,7 +180,7 @@ fun SectionHeader(
     horizontalArrangement = Arrangement.SpaceBetween,
     verticalAlignment = Alignment.CenterVertically
   ) {
-    Column(modifier = Modifier.weight(1f)) {
+    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
       Text(
         text = title,
         style = MaterialTheme.typography.titleLarge,
@@ -179,16 +209,16 @@ fun EmptyStateCard(
   description: String
 ) {
   Card(
-    shape = RoundedCornerShape(16.dp),
+    shape = RoundedCornerShape(14.dp),
     colors = CardDefaults.cardColors(
-      containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
+      containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.42f)
     ),
     border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
   ) {
     Column(
       modifier = Modifier
         .fillMaxWidth()
-        .padding(24.dp),
+        .padding(22.dp),
       horizontalAlignment = Alignment.CenterHorizontally,
       verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
@@ -196,7 +226,7 @@ fun EmptyStateCard(
         imageVector = icon,
         contentDescription = title,
         tint = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.size(36.dp)
+        modifier = Modifier.size(34.dp)
       )
       Text(
         text = title,
@@ -220,21 +250,22 @@ fun RoleWorkspaceChip(
   Surface(
     color = MaterialTheme.colorScheme.primaryContainer,
     shape = RoundedCornerShape(999.dp),
+    border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.25f)),
     modifier = Modifier
       .minimumInteractiveComponentSize()
       .clickable(onClick = onClick)
       .testTag("role_switcher_chip")
   ) {
     Row(
-      modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+      modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
       verticalAlignment = Alignment.CenterVertically,
-      horizontalArrangement = Arrangement.spacedBy(6.dp)
+      horizontalArrangement = Arrangement.spacedBy(5.dp)
     ) {
       Icon(
         imageVector = Icons.Filled.Badge,
         contentDescription = "Active role",
         tint = MaterialTheme.colorScheme.onPrimaryContainer,
-        modifier = Modifier.size(16.dp)
+        modifier = Modifier.size(15.dp)
       )
       Text(
         text = activeRole.title,
@@ -247,7 +278,7 @@ fun RoleWorkspaceChip(
         imageVector = Icons.Filled.SwapHoriz,
         contentDescription = "Switch workspace role",
         tint = MaterialTheme.colorScheme.onPrimaryContainer,
-        modifier = Modifier.size(16.dp)
+        modifier = Modifier.size(15.dp)
       )
     }
   }

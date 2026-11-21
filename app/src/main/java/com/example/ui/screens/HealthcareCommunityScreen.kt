@@ -1,6 +1,7 @@
 package com.example.ui.screens
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -9,6 +10,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -18,6 +20,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Gavel
 import androidx.compose.material.icons.filled.HealthAndSafety
 import androidx.compose.material.icons.filled.Home
@@ -26,11 +29,14 @@ import androidx.compose.material.icons.filled.QrCode2
 import androidx.compose.material.icons.filled.Recycling
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -47,9 +53,16 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.example.R
 import com.example.domain.engine.MoneyAndWeight
 import com.example.domain.model.ClaimStatus
 import com.example.domain.model.DisputeRecord
@@ -63,7 +76,10 @@ import com.example.ui.components.MetricCard
 import com.example.ui.components.SectionHeader
 import com.example.ui.components.StatusPill
 import com.example.ui.state.WasteHealsSnapshot
+import com.example.ui.theme.EmeraldPrimary
 import com.example.ui.theme.ErrorCrimson
+import com.example.ui.theme.IceBlueBorder
+import com.example.ui.theme.IceBlueSurface
 import com.example.ui.theme.SuccessGreen
 import com.example.ui.theme.TabularCompactStyle
 import com.example.ui.theme.TabularMoneyStyle
@@ -85,16 +101,21 @@ fun HealthcareCommunityScreen(
   val tabs = listOf("Healthcare Fund", "Households", "Disputes & Audit")
 
   Column(modifier = Modifier.fillMaxSize()) {
-    PrimaryScrollableTabRow(selectedTabIndex = subTab, edgePadding = 12.dp) {
+    PrimaryScrollableTabRow(
+      selectedTabIndex = subTab,
+      edgePadding = 12.dp,
+      containerColor = MaterialTheme.colorScheme.surface
+    ) {
       tabs.forEachIndexed { idx, title ->
         Tab(
           selected = subTab == idx,
           onClick = { subTab = idx },
-          text = { Text(title) },
+          text = { Text(title, style = MaterialTheme.typography.labelLarge) },
           modifier = Modifier.testTag("health_subtab_$idx")
         )
       }
     }
+    HorizontalDivider(color = MaterialTheme.colorScheme.outline)
 
     when (subTab) {
       0 -> HealthcareTab(snap, isBusy, onIssueVoucher, onRedeemVoucher, onPayClaim)
@@ -115,6 +136,9 @@ private fun HealthcareTab(
   val led = snap.ledgerSummary
   val fundedCash = led.restrictedHealthcareCashUgx
   val accruedUnfunded = led.healthcareAccruedUnfundedUgx
+  val totalHcObligation = (fundedCash + accruedUnfunded).coerceAtLeast(1L)
+  val fundedRatio = (fundedCash.toFloat() / totalHcObligation.toFloat()).coerceIn(0f, 1f)
+
   var selectedClinicId by remember(snap.clinics) { mutableStateOf(snap.clinics.firstOrNull()?.id ?: "") }
   var serviceName by remember { mutableStateOf("Outpatient Consult & Malaria Screening") }
   var capUgxText by remember { mutableStateOf("15000") }
@@ -122,6 +146,7 @@ private fun HealthcareTab(
 
   val selectedClinic = snap.clinics.firstOrNull { it.id == selectedClinicId } ?: snap.clinics.firstOrNull()
   val capUgx = MoneyAndWeight.parseUgxToLong(capUgxText) ?: 0L
+  val latestVoucher = snap.vouchers.firstOrNull()
 
   redeemTarget?.let { vch ->
     var claimText by remember { mutableStateOf(vch.maxAmountUgxMinor.toString()) }
@@ -156,12 +181,146 @@ private fun HealthcareTab(
     contentPadding = PaddingValues(16.dp),
     verticalArrangement = Arrangement.spacedBy(12.dp)
   ) {
+    // 1. Community Healthcare Shield Hero Ticket Card (Screenshot 4)
     item {
-      SectionHeader(
-        title = "Restricted Healthcare Fund",
-        subtitle = "UGX ${snap.policy.healthcareUgxPerKg}/kg sold • Vouchers strictly backed by collected cash"
-      )
+      Card(
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+      ) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+          Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+          ) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+              Icon(Icons.Filled.LocalHospital, contentDescription = null, tint = EmeraldPrimary)
+              Column {
+                Text(
+                  text = "EVERY KG PROTECTS YOUR FAMILY",
+                  style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                  color = EmeraldPrimary
+                )
+                Text("Community Healthcare Shield", style = MaterialTheme.typography.headlineMedium)
+              }
+            }
+            StatusPill(
+              text = if (fundedCash > 0L) "ACTIVE" else "STANDBY",
+              containerColor = IceBlueSurface,
+              contentColor = EmeraldPrimary,
+              showDot = true
+            )
+          }
+
+          Surface(
+            color = IceBlueSurface,
+            shape = RoundedCornerShape(12.dp),
+            border = BorderStroke(1.dp, IceBlueBorder),
+            modifier = Modifier.fillMaxWidth()
+          ) {
+            Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+              Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+              ) {
+                Image(
+                  painter = painterResource(id = R.drawable.img_hero_kampala),
+                  contentDescription = "Kampala Healthcare Coverage",
+                  contentScale = ContentScale.Crop,
+                  modifier = Modifier
+                    .size(48.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                )
+                Column(modifier = Modifier.weight(1f)) {
+                  Text(
+                    text = "RESTRICTED HEALTHCARE RESERVE",
+                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                    color = EmeraldPrimary
+                  )
+                  Text(
+                    text = "Primary Clinic Care (UGX ${snap.policy.healthcareUgxPerKg}/kg)",
+                    style = MaterialTheme.typography.titleSmall
+                  )
+                  Text(
+                    text = "Strictly backed by collected commercial buyer receipts",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                  )
+                }
+              }
+              LinearProgressIndicator(
+                progress = { fundedRatio },
+                modifier = Modifier
+                  .fillMaxWidth()
+                  .height(6.dp)
+                  .clip(RoundedCornerShape(999.dp)),
+                color = EmeraldPrimary,
+                trackColor = EmeraldPrimary.copy(alpha = 0.16f)
+              )
+            }
+          }
+
+          // Digital Clinic Voucher Preview Ticket Frame
+          Surface(
+            color = MaterialTheme.colorScheme.surface,
+            shape = RoundedCornerShape(14.dp),
+            border = BorderStroke(1.dp, IceBlueBorder),
+            modifier = Modifier.fillMaxWidth()
+          ) {
+            Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+              Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+              ) {
+                Column {
+                  Text("DIGITAL CLINIC VOUCHER CODE", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                  Text(
+                    text = latestVoucher?.voucherCode ?: "READY TO ISSUE",
+                    style = TabularMoneyStyle,
+                    color = EmeraldPrimary
+                  )
+                }
+                Column(horizontalAlignment = Alignment.End) {
+                  Text("VALIDITY / CAP", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                  Text(
+                    text = latestVoucher?.let { MoneyAndWeight.formatUgx(it.maxAmountUgxMinor) } ?: "14 Days • Escrowed",
+                    style = TabularCompactStyle.copy(fontWeight = FontWeight.Bold)
+                  )
+                }
+              }
+
+              Text(
+                text = "COVERED SERVICES FOR PICKERS & FAMILIES:",
+                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+              )
+
+              Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) {
+                  CoveredServicePill("Malaria Tests & Meds", Modifier.weight(1f))
+                  CoveredServicePill("Typhoid Screening", Modifier.weight(1f))
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) {
+                  CoveredServicePill("Protective Wound Care", Modifier.weight(1f))
+                  CoveredServicePill("Generic Prescriptions", Modifier.weight(1f))
+                }
+              }
+
+              if (selectedClinic != null) {
+                Text(
+                  text = "Partner Clinic: ${selectedClinic.clinicName} • ${selectedClinic.location}",
+                  style = MaterialTheme.typography.bodySmall,
+                  color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+              }
+            }
+          }
+        }
+      }
     }
+
     item {
       Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
         MetricCard(
@@ -183,14 +342,15 @@ private fun HealthcareTab(
       }
     }
 
+    // 2. Issue Single-Use Clinic Voucher Card
     item {
       Card(
-        shape = RoundedCornerShape(14.dp),
+        shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
       ) {
         Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-          Text("Issue Single-Use Clinic Voucher", style = MaterialTheme.typography.titleSmall)
+          Text("Issue Single-Use Clinic Voucher", style = MaterialTheme.typography.titleMedium)
           if (snap.clinics.isNotEmpty()) {
             Row(
               modifier = Modifier.horizontalScroll(rememberScrollState()),
@@ -233,6 +393,8 @@ private fun HealthcareTab(
               onIssueVoucher(cl, serviceName, capUgx, fundedCash)
             },
             enabled = !isBusy && selectedClinic != null && capUgx in 1L..fundedCash,
+            colors = ButtonDefaults.buttonColors(containerColor = EmeraldPrimary, contentColor = Color.White),
+            shape = RoundedCornerShape(12.dp),
             modifier = Modifier
               .fillMaxWidth()
               .testTag("issue_voucher_button")
@@ -279,10 +441,11 @@ private fun HealthcareTab(
               Button(
                 onClick = { redeemTarget = v },
                 enabled = !isBusy,
+                colors = ButtonDefaults.buttonColors(containerColor = EmeraldPrimary, contentColor = Color.White),
                 modifier = Modifier.testTag("redeem_voucher_${v.id}")
               ) { Text("Redeem") }
             } else {
-              StatusPill("REDEEMED", SuccessGreen.copy(alpha = 0.15f), SuccessGreen)
+              StatusPill("REDEEMED", SuccessGreen.copy(alpha = 0.15f), SuccessGreen, showDot = true)
             }
           }
         }
@@ -315,13 +478,41 @@ private fun HealthcareTab(
             Button(
               onClick = { onPayClaim(clm, clinicName) },
               enabled = !isBusy,
+              colors = ButtonDefaults.buttonColors(containerColor = EmeraldPrimary, contentColor = Color.White),
               modifier = Modifier.testTag("pay_claim_${clm.id}")
             ) { Text("Pay Claim") }
           } else {
-            StatusPill("PAID", SuccessGreen.copy(alpha = 0.15f), SuccessGreen)
+            StatusPill("PAID", SuccessGreen.copy(alpha = 0.15f), SuccessGreen, showDot = true)
           }
         }
       }
+    }
+  }
+}
+
+@Composable
+private fun CoveredServicePill(
+  text: String,
+  modifier: Modifier = Modifier
+) {
+  Surface(
+    color = IceBlueSurface,
+    shape = RoundedCornerShape(8.dp),
+    modifier = modifier
+  ) {
+    Row(
+      modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
+      verticalAlignment = Alignment.CenterVertically,
+      horizontalArrangement = Arrangement.spacedBy(5.dp)
+    ) {
+      Icon(Icons.Filled.Check, contentDescription = null, tint = SuccessGreen, modifier = Modifier.size(13.dp))
+      Text(
+        text = text,
+        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
+        color = EmeraldPrimary,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis
+      )
     }
   }
 }
@@ -389,6 +580,8 @@ private fun HouseholdsTab(
               )
             },
             enabled = !isBusy && community.isNotBlank(),
+            colors = ButtonDefaults.buttonColors(containerColor = EmeraldPrimary, contentColor = Color.White),
+            shape = RoundedCornerShape(12.dp),
             modifier = Modifier
               .fillMaxWidth()
               .testTag("register_household_button")
@@ -431,7 +624,7 @@ private fun HouseholdsTab(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
               )
             }
-            StatusPill("${hh.pointsBalance} pts", MaterialTheme.colorScheme.primaryContainer, MaterialTheme.colorScheme.onPrimaryContainer)
+            StatusPill("${hh.pointsBalance} pts", IceBlueSurface, EmeraldPrimary)
           }
         }
       }
@@ -513,6 +706,8 @@ private fun DisputesAndAuditTab(
               desc = ""
             },
             enabled = !isBusy && desc.trim().length >= 4,
+            colors = ButtonDefaults.buttonColors(containerColor = EmeraldPrimary, contentColor = Color.White),
+            shape = RoundedCornerShape(12.dp),
             modifier = Modifier
               .fillMaxWidth()
               .testTag("file_dispute_button")
@@ -538,7 +733,8 @@ private fun DisputesAndAuditTab(
             StatusPill(
               text = dsp.status,
               containerColor = if (open) ErrorCrimson.copy(alpha = 0.14f) else SuccessGreen.copy(alpha = 0.15f),
-              contentColor = if (open) ErrorCrimson else SuccessGreen
+              contentColor = if (open) ErrorCrimson else SuccessGreen,
+              showDot = true
             )
           }
           Text(dsp.description, style = MaterialTheme.typography.bodySmall)
@@ -563,10 +759,11 @@ private fun DisputesAndAuditTab(
     items(snap.auditLogs.take(15), key = { it.id }) { log ->
       Surface(
         shape = RoundedCornerShape(10.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
+        color = IceBlueSurface.copy(alpha = 0.7f),
+        border = BorderStroke(1.dp, IceBlueBorder)
       ) {
         Column(modifier = Modifier.fillMaxWidth().padding(10.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-          Text("${log.action} • ${log.entityType}", style = MaterialTheme.typography.labelLarge)
+          Text("${log.action} • ${log.entityType}", style = MaterialTheme.typography.labelLarge, color = EmeraldPrimary)
           Text(log.summary, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
       }

@@ -2,34 +2,44 @@ package com.example.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// Primary Civic Emerald Palette
-val EmeraldPrimary = Color(0xFF0E5A36)
+// Primary Forest Emerald Palette (Screenshot Signature)
+val EmeraldPrimary = Color(0xFF0B462B)
 val OnEmeraldPrimary = Color(0xFFFFFFFF)
-val EmeraldContainer = Color(0xFFCDEEE0)
-val OnEmeraldContainer = Color(0xFF042917)
+val EmeraldContainer = Color(0xFFD2EFE0)
+val OnEmeraldContainer = Color(0xFF052918)
 
-// Secondary Kampala Terracotta Palette
+// Secondary Kampala Terracotta & Copper Palette
 val TerracottaSecondary = Color(0xFFB8522E)
 val OnTerracottaSecondary = Color(0xFFFFFFFF)
 val TerracottaContainer = Color(0xFFFFDBD0)
 val OnTerracottaContainer = Color(0xFF3D1204)
 
-// Tertiary Savanna Gold Palette
+// Tertiary Savanna / MoMo Gold Palette
 val SavannaTertiary = Color(0xFFC9820B)
 val OnSavannaTertiary = Color(0xFFFFFFFF)
-val SavannaContainer = Color(0xFFFFE7BE)
-val OnSavannaContainer = Color(0xFF3A2300)
+val SavannaContainer = Color(0xFFFFF0CC)
+val OnSavannaContainer = Color(0xFF5C3800)
 
-// Neutral Mineral Surfaces (Light)
-val MineralBackground = Color(0xFFF6F8F6)
-val OnMineralBackground = Color(0xFF121A15)
+// Neutral Mineral Surfaces (Light - Crisp Editorial Canvas)
+val MineralBackground = Color(0xFFF4F7F5)
+val OnMineralBackground = Color(0xFF101914)
 val CardSurface = Color(0xFFFFFFFF)
-val SurfaceVariantLight = Color(0xFFE7EDE8)
-val OnSurfaceVariantLight = Color(0xFF425247)
-val OutlineSubtleLight = Color(0xFFD0DBD3)
+val SurfaceVariantLight = Color(0xFFE9EFEA)
+val OnSurfaceVariantLight = Color(0xFF47574D)
+val OutlineSubtleLight = Color(0xFFD9E2DC)
+
+// Specialized Industrial & Editorial Surfaces
+val IndustrialSlateDark = Color(0xFF162235)
+val IndustrialSlateCard = Color(0xFF1F2E46)
+val IndustrialCyanText = Color(0xFF7ADCF5)
+val TelemetryObsidian = Color(0xFF281E0B)
+val TelemetryAmber = Color(0xFFF5C451)
+val IceBlueSurface = Color(0xFFEEF4FA)
+val IceBlueBorder = Color(0xFFD4E2F0)
+val DeepForestHero = Color(0xFF0C4329)
 
 // Semantic Status Tokens
-val SuccessGreen = Color(0xFF157347)
+val SuccessGreen = Color(0xFF147246)
 val WarningAmber = Color(0xFFD97706)
 val ErrorCrimson = Color(0xFFB91C1C)
 val ErrorContainerLight = Color(0xFFFEE2E2)

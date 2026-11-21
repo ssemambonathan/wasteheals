@@ -78,6 +78,8 @@ class MainDashboardUiTest {
     mountDashboard()
 
     composeRule.onNodeWithTag("main_bottom_navigation_bar").assertIsDisplayed()
+    composeRule.onNodeWithTag("workspace_home_list")
+      .performScrollToNode(androidx.compose.ui.test.hasText("Core Platform Views"))
     composeRule.onNodeWithText("Core Platform Views").assertIsDisplayed()
 
     // Switch to Waste Collection
@@ -94,6 +96,8 @@ class MainDashboardUiTest {
 
     // Switch back to Dashboard
     composeRule.onNodeWithTag("nav_home").performClick()
+    composeRule.onNodeWithTag("workspace_home_list")
+      .performScrollToNode(hasTestTag("dashboard_card_collection"))
     composeRule.onNodeWithTag("dashboard_card_collection").assertIsDisplayed()
   }
 

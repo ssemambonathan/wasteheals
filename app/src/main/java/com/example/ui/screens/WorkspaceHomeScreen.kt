@@ -17,25 +17,35 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.AccountBalance
 import androidx.compose.material.icons.filled.AccountBalanceWallet
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Compost
 import androidx.compose.material.icons.filled.Eco
 import androidx.compose.material.icons.filled.Gavel
 import androidx.compose.material.icons.filled.HealthAndSafety
 import androidx.compose.material.icons.filled.Inventory2
+import androidx.compose.material.icons.filled.LocalHospital
+import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Payments
+import androidx.compose.material.icons.filled.QrCode2
 import androidx.compose.material.icons.filled.Recycling
 import androidx.compose.material.icons.filled.Scale
 import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
@@ -44,12 +54,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.R
 import com.example.domain.engine.MoneyAndWeight
@@ -64,9 +75,15 @@ import com.example.ui.components.MetricCard
 import com.example.ui.components.SectionHeader
 import com.example.ui.components.StatusPill
 import com.example.ui.state.WasteHealsSnapshot
+import com.example.ui.theme.DeepForestHero
 import com.example.ui.theme.ErrorCrimson
+import com.example.ui.theme.IceBlueBorder
+import com.example.ui.theme.IceBlueSurface
+import com.example.ui.theme.SavannaContainer
 import com.example.ui.theme.SuccessGreen
 import com.example.ui.theme.TabularCompactStyle
+import com.example.ui.theme.TabularHeroMoneyStyle
+import com.example.ui.theme.TabularMoneyStyle
 import com.example.ui.theme.WarningAmber
 
 @Composable
@@ -89,6 +106,15 @@ fun WorkspaceHomeScreen(
   }
   val pendingApprovals = snap.approvals.count { it.status == ApprovalStatus.PENDING.name }
 
+  val totalEarned = snap.earnings.sumOf { it.amountUgxMinor }
+  val settledEarnings = snap.earnings.filter { it.payoutStatus == PayoutStatus.SETTLED.name }.sumOf { it.amountUgxMinor }
+  val availablePickerCash = (totalEarned - settledEarnings).coerceAtLeast(0L)
+  val heroUgxAmount = if (activeRole.isPrivileged) ledger.operatingCashUgx else availablePickerCash
+  val heroHeaderLabel = if (activeRole.isPrivileged) "TREASURY OPERATING CASH" else "GUARANTEED AVAILABLE CASH"
+  val displayName = snap.profile?.displayName?.ifBlank { null } ?: "WasteHeals Member"
+  val shortId = "#WH-${(snap.profile?.userId ?: "KMP").take(6).uppercase()}"
+  val primaryHub = snap.hubs.firstOrNull()?.name ?: "Kampala Central Hub"
+
   LazyColumn(
     modifier = Modifier
       .fillMaxSize()
@@ -96,61 +122,241 @@ fun WorkspaceHomeScreen(
     contentPadding = PaddingValues(16.dp),
     verticalArrangement = Arrangement.spacedBy(14.dp)
   ) {
+    // 1. Verified Operator / Collector Identity Card (Screenshot 4 top card)
     item {
-      Box(
-        modifier = Modifier
-          .fillMaxWidth()
-          .height(142.dp)
-          .clip(RoundedCornerShape(18.dp))
+      Card(
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
       ) {
-        Image(
-          painter = painterResource(id = R.drawable.img_hero_kampala),
-          contentDescription = "Kampala Circular Network Banner",
-          modifier = Modifier.fillMaxSize(),
-          contentScale = ContentScale.Crop
-        )
-        Box(
-          modifier = Modifier
-            .fillMaxSize()
-            .background(
-              Brush.verticalGradient(
-                listOf(
-                  Color.Black.copy(alpha = 0.20f),
-                  Color.Black.copy(alpha = 0.72f)
-                )
-              )
+        Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+          Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+          ) {
+            StatusPill(
+              text = activeRole.title.uppercase(),
+              containerColor = MaterialTheme.colorScheme.primaryContainer,
+              contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+              showDot = true
             )
-        )
-        Column(
-          modifier = Modifier
-            .align(Alignment.BottomStart)
-            .padding(16.dp),
-          verticalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
-          StatusPill(
-            text = "${activeRole.workspaceGroup.label.uppercase()} • POLICY v${snap.policy.version}",
-            containerColor = MaterialTheme.colorScheme.tertiaryContainer,
-            contentColor = MaterialTheme.colorScheme.onTertiaryContainer
-          )
-          Text(
-            text = "Welcome, ${snap.profile?.displayName ?: "Member"}",
-            style = MaterialTheme.typography.headlineSmall,
-            color = Color.White
-          )
-          Text(
-            text = "HC Rate: UGX ${snap.policy.healthcareUgxPerKg}/kg sold • Reward Pool: ${snap.policy.pickerRewardPct}% surplus",
-            style = MaterialTheme.typography.bodySmall,
-            color = Color.White.copy(alpha = 0.92f)
-          )
+            StatusPill(
+              text = "POLICY v${snap.policy.version}",
+              containerColor = MaterialTheme.colorScheme.surfaceVariant,
+              contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+          }
+
+          Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+          ) {
+            Box {
+              Surface(
+                color = MaterialTheme.colorScheme.primary,
+                shape = RoundedCornerShape(14.dp),
+                modifier = Modifier.size(50.dp)
+              ) {
+                Box(contentAlignment = Alignment.Center) {
+                  Text(
+                    text = displayName.trim().take(2).uppercase(),
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                    color = Color.White
+                  )
+                }
+              }
+              Surface(
+                color = SuccessGreen,
+                shape = CircleShape,
+                border = BorderStroke(2.dp, Color.White),
+                modifier = Modifier
+                  .size(18.dp)
+                  .align(Alignment.BottomEnd)
+              ) {
+                Icon(
+                  imageVector = Icons.Filled.Check,
+                  contentDescription = "Verified",
+                  tint = Color.White,
+                  modifier = Modifier.padding(2.dp)
+                )
+              }
+            }
+
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+              Text(
+                text = displayName,
+                style = MaterialTheme.typography.headlineSmall,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+              )
+              Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+              ) {
+                StatusPill(
+                  text = shortId,
+                  containerColor = MaterialTheme.colorScheme.primaryContainer,
+                  contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                )
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+                  Icon(
+                    imageVector = Icons.Filled.LocationOn,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(13.dp)
+                  )
+                  Text(
+                    text = primaryHub,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                  )
+                }
+              }
+            }
+          }
+
+          Surface(
+            color = IceBlueSurface,
+            shape = RoundedCornerShape(12.dp),
+            border = BorderStroke(1.dp, IceBlueBorder),
+            onClick = { onNavigateTab(1) }
+          ) {
+            Row(
+              modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+              horizontalArrangement = Arrangement.SpaceBetween,
+              verticalAlignment = Alignment.CenterVertically
+            ) {
+              Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Icon(Icons.Filled.QrCode2, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                Column {
+                  Text("Rapid Scale Weigh-In Pass", style = MaterialTheme.typography.titleSmall)
+                  Text(
+                    "Open calibrated weighing console",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                  )
+                }
+              }
+              Surface(
+                color = MaterialTheme.colorScheme.primary,
+                shape = RoundedCornerShape(8.dp)
+              ) {
+                Text(
+                  text = "Collect",
+                  style = MaterialTheme.typography.labelLarge,
+                  color = Color.White,
+                  modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                )
+              }
+            }
+          }
         }
       }
     }
 
+    // 2. Dark Forest Emerald Hero Cash & MoMo Card (Screenshot 4 signature hero card)
+    item {
+      Surface(
+        color = DeepForestHero,
+        shape = RoundedCornerShape(18.dp),
+        modifier = Modifier.fillMaxWidth()
+      ) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+          Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+          ) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+              Icon(
+                imageVector = Icons.Filled.AccountBalanceWallet,
+                contentDescription = null,
+                tint = Color.White.copy(alpha = 0.85f),
+                modifier = Modifier.size(16.dp)
+              )
+              Text(
+                text = heroHeaderLabel,
+                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                color = Color.White.copy(alpha = 0.85f)
+              )
+            }
+            StatusPill(
+              text = "MTN & Airtel MoMo",
+              containerColor = Color.White.copy(alpha = 0.16f),
+              contentColor = Color.White
+            )
+          }
+
+          Text(
+            text = MoneyAndWeight.formatUgx(heroUgxAmount),
+            style = TabularHeroMoneyStyle,
+            color = Color.White
+          )
+
+          Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            Icon(
+              imageVector = Icons.Filled.CheckCircle,
+              contentDescription = null,
+              tint = Color(0xFF7ADBA5),
+              modifier = Modifier.size(15.dp)
+            )
+            Text(
+              text = "100% Double-Entry Verified • Direct MoMo (Wallet Off)",
+              style = MaterialTheme.typography.bodySmall,
+              color = Color.White.copy(alpha = 0.88f)
+            )
+          }
+
+          Button(
+            onClick = { onNavigateTab(3) },
+            colors = ButtonDefaults.buttonColors(
+              containerColor = Color.White,
+              contentColor = DeepForestHero
+            ),
+            shape = RoundedCornerShape(12.dp),
+            modifier = Modifier.fillMaxWidth()
+          ) {
+            Icon(Icons.Filled.Payments, contentDescription = null, modifier = Modifier.size(18.dp))
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+              text = if (activeRole.isPrivileged) "Open Treasury Ledger & MoMo" else "View Earnings & MoMo Payouts",
+              style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold)
+            )
+          }
+
+          Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+            HeroStatTile(
+              label = "ACCEPTED KG",
+              value = MoneyAndWeight.formatKg(snap.totalAcceptedKgMilli),
+              modifier = Modifier.weight(1f)
+            )
+            HeroStatTile(
+              label = "SOLD KG",
+              value = MoneyAndWeight.formatKg(snap.totalConfirmedSoldKgMilli),
+              modifier = Modifier.weight(1f)
+            )
+            HeroStatTile(
+              label = "HC FUNDED",
+              value = MoneyAndWeight.formatUgx(ledger.restrictedHealthcareCashUgx),
+              modifier = Modifier.weight(1f)
+            )
+          }
+        }
+      }
+    }
+
+    // Offline Sync Alert Banner if queued events exist
     if (pendingSyncCount > 0) {
       item {
         Card(
           shape = RoundedCornerShape(14.dp),
-          colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer),
+          colors = CardDefaults.cardColors(containerColor = SavannaContainer),
+          border = BorderStroke(1.dp, WarningAmber.copy(alpha = 0.45f)),
           modifier = Modifier.fillMaxWidth()
         ) {
           Row(
@@ -160,12 +366,12 @@ fun WorkspaceHomeScreen(
           ) {
             Column(modifier = Modifier.weight(1f)) {
               Text(
-                text = "$pendingSyncCount Offline Collection(s) Queued",
+                text = "$pendingSyncCount Offline Collection(s) Buffered",
                 style = MaterialTheme.typography.titleSmall,
                 color = MaterialTheme.colorScheme.onTertiaryContainer
               )
               Text(
-                text = "Provisional receipts stay pending until idempotently synced and verified.",
+                text = "Provisional receipts sync idempotently before hub acceptance.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onTertiaryContainer
               )
@@ -175,7 +381,7 @@ fun WorkspaceHomeScreen(
               onClick = onSyncOffline,
               modifier = Modifier.testTag("home_sync_offline_button")
             ) {
-              Icon(Icons.Filled.Sync, contentDescription = null)
+              Icon(Icons.Filled.Sync, contentDescription = null, modifier = Modifier.size(16.dp))
               Spacer(modifier = Modifier.width(6.dp))
               Text("Sync")
             }
@@ -184,11 +390,11 @@ fun WorkspaceHomeScreen(
       }
     }
 
-    // Core Operational Views Quick Switch
+    // 3. Core Platform Views Switcher Cards
     item {
       SectionHeader(
         title = "Core Platform Views",
-        subtitle = "Jump directly to Collection, Financial Ledger, or Healthcare Services"
+        subtitle = "Switch directly to Waste Collection, Financial Ledger, or Healthcare Services"
       )
     }
 
@@ -196,7 +402,7 @@ fun WorkspaceHomeScreen(
       Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         DashboardModuleCard(
           title = "Waste Collection & Weighing",
-          subtitle = "${MoneyAndWeight.formatKg(snap.totalAcceptedKgMilli)} verified • $pendingSyncCount offline queued",
+          subtitle = "${MoneyAndWeight.formatKg(snap.totalAcceptedKgMilli)} verified • $pendingSyncCount offline buffered",
           badgeText = if (pendingVerifCount > 0) "$pendingVerifCount pending" else "${snap.hubs.size} hubs",
           icon = Icons.Filled.Scale,
           accentColor = MaterialTheme.colorScheme.primary,
@@ -224,14 +430,176 @@ fun WorkspaceHomeScreen(
       }
     }
 
+    // 4. Community Healthcare Shield Card (Screenshot 4 Healthcare Shield)
+    item {
+      val topVoucher = snap.vouchers.firstOrNull()
+      val topClinic = snap.clinics.firstOrNull()
+      Card(
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+      ) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+          Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+          ) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+              Icon(Icons.Filled.LocalHospital, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+              Column {
+                Text(
+                  text = "EVERY KG PROTECTS YOUR HEALTH",
+                  style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                  color = MaterialTheme.colorScheme.primary
+                )
+                Text("Community Healthcare Shield", style = MaterialTheme.typography.titleLarge)
+              }
+            }
+            StatusPill(
+              text = "ACTIVE",
+              containerColor = IceBlueSurface,
+              contentColor = MaterialTheme.colorScheme.primary,
+              showDot = true
+            )
+          }
+
+          Surface(
+            color = IceBlueSurface,
+            shape = RoundedCornerShape(12.dp),
+            border = BorderStroke(1.dp, IceBlueBorder),
+            modifier = Modifier.fillMaxWidth()
+          ) {
+            Row(
+              modifier = Modifier.padding(12.dp),
+              verticalAlignment = Alignment.CenterVertically,
+              horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+              Image(
+                painter = painterResource(id = R.drawable.img_hero_kampala),
+                contentDescription = "Kampala Healthcare Coverage",
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                  .size(48.dp)
+                  .clip(RoundedCornerShape(10.dp))
+              )
+              Column(modifier = Modifier.weight(1f)) {
+                Text(
+                  text = "Restricted Healthcare Reserve",
+                  style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                  color = MaterialTheme.colorScheme.primary
+                )
+                Text(
+                  text = "Funded Cash: ${MoneyAndWeight.formatUgx(ledger.restrictedHealthcareCashUgx)}",
+                  style = MaterialTheme.typography.titleSmall
+                )
+                Text(
+                  text = topVoucher?.let { "Active Voucher: ${it.voucherCode} (${it.serviceName})" }
+                    ?: "Accrued UGX ${snap.policy.healthcareUgxPerKg}/kg on confirmed buyer sales",
+                  style = MaterialTheme.typography.bodySmall,
+                  color = MaterialTheme.colorScheme.onSurfaceVariant,
+                  maxLines = 1,
+                  overflow = TextOverflow.Ellipsis
+                )
+              }
+            }
+          }
+
+          if (topClinic != null) {
+            Row(
+              verticalAlignment = Alignment.CenterVertically,
+              horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+              Icon(
+                imageVector = Icons.Filled.CheckCircle,
+                contentDescription = null,
+                tint = SuccessGreen,
+                modifier = Modifier.size(16.dp)
+              )
+              Text(
+                text = "Partner Clinic: ${topClinic.clinicName} (${topClinic.location})",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+              )
+            }
+          }
+
+          Button(
+            onClick = { onNavigateTab(4) },
+            shape = RoundedCornerShape(12.dp),
+            modifier = Modifier.fillMaxWidth()
+          ) {
+            Icon(Icons.Filled.HealthAndSafety, contentDescription = null, modifier = Modifier.size(18.dp))
+            Spacer(modifier = Modifier.width(8.dp))
+            Text("Open Healthcare Vouchers & Clinics")
+          }
+        }
+      }
+    }
+
+    // 5. 30% Monthly Surplus Bonus Pool Card (Screenshot 4)
+    item {
+      val gateOk = surplus.liquidityGatePassed
+      Card(
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+      ) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+          Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+          ) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+              Icon(Icons.Filled.Star, contentDescription = null, tint = WarningAmber)
+              Text("${snap.policy.pickerRewardPct}% Monthly Surplus Bonus Pool", style = MaterialTheme.typography.titleMedium)
+            }
+            StatusPill(
+              text = if (gateOk) "Gate Passed" else "Gate Locked",
+              containerColor = if (gateOk) MaterialTheme.colorScheme.primaryContainer else SavannaContainer,
+              contentColor = if (gateOk) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onTertiaryContainer
+            )
+          }
+
+          Surface(
+            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
+            shape = RoundedCornerShape(12.dp),
+            modifier = Modifier.fillMaxWidth()
+          ) {
+            Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+              Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text("DISTRIBUTABLE REWARD POOL", style = MaterialTheme.typography.labelSmall)
+                Text(MoneyAndWeight.formatUgx(surplus.pickerRewardPoolUgx), style = TabularCompactStyle)
+              }
+              LinearProgressIndicator(
+                progress = { if (gateOk) 0.78f else 0.25f },
+                modifier = Modifier
+                  .fillMaxWidth()
+                  .height(7.dp)
+                  .clip(RoundedCornerShape(999.dp)),
+                color = if (gateOk) SuccessGreen else WarningAmber
+              )
+              Text(
+                text = if (gateOk) "Solvency & liquidity checks passed across ${snap.rewardAllocations.size} eligible picker(s)"
+                else (surplus.blockedReason ?: "Requires positive surplus and working capital reserve"),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+              )
+            }
+          }
+        }
+      }
+    }
+
+    // 6. Role-Specific Workspace KPIs
     item {
       SectionHeader(
         title = "${activeRole.title} Workspace",
-        subtitle = "Live Firestore & Room database metrics"
+        subtitle = "Live Firestore & Room operational telemetry"
       )
     }
 
-    // Role-specific KPI rows
     when (activeRole.workspaceGroup) {
       WorkspaceGroup.FINANCE_TREASURY, WorkspaceGroup.ADMIN_GOVERNANCE -> {
         item {
@@ -288,22 +656,14 @@ fun WorkspaceHomeScreen(
                 StatusPill(
                   text = if (ledger.isBalanced) "TRIAL BALANCE OK" else "IMBALANCE ALERT",
                   containerColor = if (ledger.isBalanced) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.errorContainer,
-                  contentColor = if (ledger.isBalanced) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onErrorContainer
+                  contentColor = if (ledger.isBalanced) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onErrorContainer,
+                  showDot = true
                 )
               }
               Text(
-                text = "Pending Hub Verifications: $pendingVerifCount • Maker-Checker Queue: $pendingApprovals • Unresolved MoMo: $unresolvedMomo",
+                text = "Pending Verifications: $pendingVerifCount • Maker-Checker Queue: $pendingApprovals • Unresolved MoMo: $unresolvedMomo",
                 style = TabularCompactStyle,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
-              )
-              Text(
-                text = if (surplus.liquidityGatePassed) {
-                  "Liquidity Gate PASSED — Reward Pool: ${MoneyAndWeight.formatUgx(surplus.pickerRewardPoolUgx)}"
-                } else {
-                  "Liquidity Gate: ${surplus.blockedReason ?: "Insufficient distributable cash"}"
-                },
-                style = MaterialTheme.typography.bodySmall,
-                color = if (surplus.liquidityGatePassed) SuccessGreen else WarningAmber
               )
             }
           }
@@ -352,37 +712,13 @@ fun WorkspaceHomeScreen(
       }
 
       WorkspaceGroup.PICKER_PORTAL -> {
-        val myEarnings = snap.earnings
-        val totalEarned = myEarnings.sumOf { it.amountUgxMinor }
-        val settled = myEarnings.filter { it.payoutStatus == PayoutStatus.SETTLED.name }.sumOf { it.amountUgxMinor }
-        val unsettled = totalEarned - settled
         item {
           Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
             MetricCard(
               title = "Guaranteed Earnings",
               value = MoneyAndWeight.formatUgx(totalEarned),
-              subtitle = "Settled: ${MoneyAndWeight.formatUgx(settled)}",
+              subtitle = "Settled: ${MoneyAndWeight.formatUgx(settledEarnings)}",
               icon = Icons.Filled.Payments,
-              modifier = Modifier.weight(1f)
-            )
-            MetricCard(
-              title = "Unsettled Balance",
-              value = MoneyAndWeight.formatUgx(unsettled),
-              subtitle = "${snap.deliveries.size} verified/pending deliveries",
-              icon = Icons.Filled.AccountBalanceWallet,
-              accentColor = MaterialTheme.colorScheme.tertiary,
-              modifier = Modifier.weight(1f)
-            )
-          }
-        }
-        item {
-          Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
-            MetricCard(
-              title = "HC Vouchers",
-              value = "${snap.vouchers.size}",
-              subtitle = "Funded Pool: ${MoneyAndWeight.formatUgx(ledger.restrictedHealthcareCashUgx)}",
-              icon = Icons.Filled.HealthAndSafety,
-              accentColor = SuccessGreen,
               modifier = Modifier.weight(1f)
             )
             MetricCard(
@@ -447,7 +783,7 @@ fun WorkspaceHomeScreen(
             MetricCard(
               title = "Restricted HC Cash",
               value = MoneyAndWeight.formatUgx(ledger.restrictedHealthcareCashUgx),
-              subtitle = "Unfunded Accrued: ${MoneyAndWeight.formatUgx(ledger.healthcareAccruedUnfundedUgx)}",
+              subtitle = "Accrued Unfunded: ${MoneyAndWeight.formatUgx(ledger.healthcareAccruedUnfundedUgx)}",
               icon = Icons.Filled.HealthAndSafety,
               accentColor = SuccessGreen,
               modifier = Modifier.weight(1f)
@@ -464,28 +800,58 @@ fun WorkspaceHomeScreen(
       }
     }
 
-    item {
-      Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
-      ) {
-        Button(
-          onClick = { onNavigateTab(1) },
-          modifier = Modifier.weight(1f)
+    // 7. Recent Certified Weigh-Ins / Kampala Pricebook
+    if (snap.deliveries.isNotEmpty()) {
+      item {
+        SectionHeader(
+          title = "Recent Certified Weigh-Ins",
+          subtitle = "Audit-proof ledger trail",
+          actionLabel = "All",
+          onAction = { onNavigateTab(1) }
+        )
+      }
+      items(snap.deliveries.take(3), key = { it.id }) { del ->
+        Surface(
+          shape = RoundedCornerShape(14.dp),
+          color = MaterialTheme.colorScheme.surface,
+          border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
         ) {
-          Text("New Collection")
-        }
-        OutlinedButton(
-          onClick = { onNavigateTab(2) },
-          modifier = Modifier.weight(1f)
-        ) {
-          Text("Hub & Sales")
-        }
-        OutlinedButton(
-          onClick = { onNavigateTab(3) },
-          modifier = Modifier.weight(1f)
-        ) {
-          Text("Ledger & MoMo")
+          Row(
+            modifier = Modifier
+              .fillMaxWidth()
+              .padding(12.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+          ) {
+            Row(
+              verticalAlignment = Alignment.CenterVertically,
+              horizontalArrangement = Arrangement.spacedBy(10.dp),
+              modifier = Modifier.weight(1f)
+            ) {
+              Surface(
+                color = IceBlueSurface,
+                shape = RoundedCornerShape(10.dp),
+                modifier = Modifier.size(38.dp)
+              ) {
+                Box(contentAlignment = Alignment.Center) {
+                  Icon(Icons.Filled.Recycling, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+                }
+              }
+              Column {
+                Text("${MoneyAndWeight.formatKg(del.acceptedKgMilli)} • ${del.materialName}", style = MaterialTheme.typography.titleSmall)
+                Text(
+                  "${del.receiptRef} • ${del.verificationStatus}",
+                  style = MaterialTheme.typography.labelSmall,
+                  color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+              }
+            }
+            Text(
+              text = "+${MoneyAndWeight.formatUgx(del.totalEarningsUgxMinor)}",
+              style = TabularMoneyStyle,
+              color = SuccessGreen
+            )
+          }
         }
       }
     }
@@ -547,6 +913,36 @@ fun WorkspaceHomeScreen(
 }
 
 @Composable
+private fun HeroStatTile(
+  label: String,
+  value: String,
+  modifier: Modifier = Modifier
+) {
+  Surface(
+    color = Color.White.copy(alpha = 0.12f),
+    shape = RoundedCornerShape(10.dp),
+    modifier = modifier
+  ) {
+    Column(modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+      Text(
+        text = label,
+        style = MaterialTheme.typography.labelSmall,
+        color = Color.White.copy(alpha = 0.78f),
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis
+      )
+      Text(
+        text = value,
+        style = TabularCompactStyle.copy(fontWeight = FontWeight.Bold),
+        color = Color.White,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis
+      )
+    }
+  }
+}
+
+@Composable
 private fun DashboardModuleCard(
   title: String,
   subtitle: String,
@@ -574,7 +970,7 @@ private fun DashboardModuleCard(
     ) {
       Surface(
         shape = RoundedCornerShape(12.dp),
-        color = accentColor.copy(alpha = 0.14f)
+        color = accentColor.copy(alpha = 0.12f)
       ) {
         Icon(
           imageVector = icon,

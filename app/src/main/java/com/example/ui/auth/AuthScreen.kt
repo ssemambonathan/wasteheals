@@ -73,8 +73,14 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.credentials.CredentialManager
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.ui.graphics.Color
 import com.example.R
 import com.example.domain.model.UserRoleKey
+import com.example.ui.theme.DeepForestHero
+import com.example.ui.theme.EmeraldPrimary
+import com.example.ui.theme.IceBlueBorder
+import com.example.ui.theme.IceBlueSurface
+import com.example.ui.theme.MineralBackground
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -111,14 +117,7 @@ fun AuthScreen(
   Box(
     modifier = Modifier
       .fillMaxSize()
-      .background(
-        Brush.verticalGradient(
-          listOf(
-            MaterialTheme.colorScheme.background,
-            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.25f)
-          )
-        )
-      )
+      .background(MineralBackground)
       .windowInsetsPadding(WindowInsets.safeDrawing)
   ) {
     Column(
@@ -133,8 +132,8 @@ fun AuthScreen(
       Box(
         modifier = Modifier
           .fillMaxWidth()
-          .height(174.dp)
-          .clip(RoundedCornerShape(22.dp))
+          .height(182.dp)
+          .clip(RoundedCornerShape(20.dp))
       ) {
         Image(
           painter = painterResource(id = R.drawable.img_hero_kampala),
@@ -142,32 +141,45 @@ fun AuthScreen(
           modifier = Modifier.fillMaxSize(),
           contentScale = ContentScale.Crop
         )
+        Box(
+          modifier = Modifier
+            .fillMaxSize()
+            .background(
+              Brush.verticalGradient(
+                listOf(
+                  DeepForestHero.copy(alpha = 0.25f),
+                  DeepForestHero.copy(alpha = 0.88f)
+                )
+              )
+            )
+        )
         Column(
           modifier = Modifier
             .align(Alignment.BottomStart)
             .padding(18.dp)
         ) {
           Surface(
-            color = MaterialTheme.colorScheme.tertiaryContainer,
-            shape = RoundedCornerShape(999.dp)
+            color = IceBlueSurface,
+            shape = RoundedCornerShape(999.dp),
+            border = BorderStroke(1.dp, IceBlueBorder)
           ) {
             Text(
               text = stringResource(R.string.kampala_pilot_badge),
-              style = MaterialTheme.typography.labelSmall,
-              color = MaterialTheme.colorScheme.onTertiaryContainer,
+              style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+              color = EmeraldPrimary,
               modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
             )
           }
-          Spacer(modifier = Modifier.height(6.dp))
+          Spacer(modifier = Modifier.height(8.dp))
           Text(
             text = stringResource(R.string.app_name),
             style = MaterialTheme.typography.displaySmall,
-            color = MaterialTheme.colorScheme.onPrimary
+            color = Color.White
           )
           Text(
             text = stringResource(R.string.app_tagline),
             style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.92f)
+            color = Color.White.copy(alpha = 0.92f)
           )
         }
       }
@@ -309,6 +321,7 @@ fun AuthScreen(
                 }
               },
               enabled = !isLoading,
+              colors = ButtonDefaults.buttonColors(containerColor = EmeraldPrimary, contentColor = Color.White),
               modifier = Modifier
                 .fillMaxWidth()
                 .height(50.dp)
@@ -367,6 +380,7 @@ fun AuthScreen(
                   authViewModel.startPhoneVerification(context, phoneNumber, requestedRole)
                 },
                 enabled = !isLoading,
+                colors = ButtonDefaults.buttonColors(containerColor = EmeraldPrimary, contentColor = Color.White),
                 modifier = Modifier
                   .fillMaxWidth()
                   .height(50.dp)

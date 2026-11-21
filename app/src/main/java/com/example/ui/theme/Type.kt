@@ -11,45 +11,46 @@ import com.example.R
 val SpaceGroteskFontFamily = FontFamily(Font(R.font.space_grotesk, FontWeight.Normal))
 val PlusJakartaSansFontFamily = FontFamily(Font(R.font.plus_jakarta_sans, FontWeight.Normal))
 val JetBrainsMonoFontFamily = FontFamily(Font(R.font.jetbrains_mono, FontWeight.Normal))
+val SourceSerifFontFamily = FontFamily(Font(R.font.source_serif_4, FontWeight.Normal))
 
 val WasteHealsTypography = Typography(
   displaySmall = TextStyle(
-    fontFamily = SpaceGroteskFontFamily,
+    fontFamily = SourceSerifFontFamily,
     fontWeight = FontWeight.Bold,
-    fontSize = 32.sp,
-    lineHeight = 38.sp,
-    letterSpacing = (-0.5).sp
+    fontSize = 28.sp,
+    lineHeight = 34.sp,
+    letterSpacing = (-0.3).sp
   ),
   headlineMedium = TextStyle(
-    fontFamily = SpaceGroteskFontFamily,
-    fontWeight = FontWeight.SemiBold,
-    fontSize = 24.sp,
-    lineHeight = 30.sp,
+    fontFamily = SourceSerifFontFamily,
+    fontWeight = FontWeight.Bold,
+    fontSize = 23.sp,
+    lineHeight = 29.sp,
     letterSpacing = (-0.2).sp
   ),
   headlineSmall = TextStyle(
     fontFamily = SpaceGroteskFontFamily,
-    fontWeight = FontWeight.SemiBold,
+    fontWeight = FontWeight.Bold,
     fontSize = 20.sp,
     lineHeight = 26.sp
   ),
   titleLarge = TextStyle(
     fontFamily = SpaceGroteskFontFamily,
-    fontWeight = FontWeight.SemiBold,
+    fontWeight = FontWeight.Bold,
     fontSize = 18.sp,
     lineHeight = 24.sp
   ),
   titleMedium = TextStyle(
     fontFamily = PlusJakartaSansFontFamily,
     fontWeight = FontWeight.SemiBold,
-    fontSize = 16.sp,
-    lineHeight = 22.sp
+    fontSize = 15.sp,
+    lineHeight = 21.sp
   ),
   titleSmall = TextStyle(
     fontFamily = PlusJakartaSansFontFamily,
     fontWeight = FontWeight.SemiBold,
-    fontSize = 14.sp,
-    lineHeight = 20.sp
+    fontSize = 13.5.sp,
+    lineHeight = 19.sp
   ),
   bodyLarge = TextStyle(
     fontFamily = PlusJakartaSansFontFamily,
@@ -60,8 +61,8 @@ val WasteHealsTypography = Typography(
   bodyMedium = TextStyle(
     fontFamily = PlusJakartaSansFontFamily,
     fontWeight = FontWeight.Normal,
-    fontSize = 14.sp,
-    lineHeight = 20.sp
+    fontSize = 13.5.sp,
+    lineHeight = 19.sp
   ),
   bodySmall = TextStyle(
     fontFamily = PlusJakartaSansFontFamily,
@@ -72,35 +73,51 @@ val WasteHealsTypography = Typography(
   labelLarge = TextStyle(
     fontFamily = PlusJakartaSansFontFamily,
     fontWeight = FontWeight.SemiBold,
-    fontSize = 14.sp,
-    lineHeight = 20.sp
+    fontSize = 13.sp,
+    lineHeight = 18.sp
   ),
   labelMedium = TextStyle(
     fontFamily = JetBrainsMonoFontFamily,
     fontWeight = FontWeight.Medium,
-    fontSize = 12.sp,
-    lineHeight = 16.sp
+    fontSize = 11.5.sp,
+    lineHeight = 15.sp
   ),
   labelSmall = TextStyle(
     fontFamily = JetBrainsMonoFontFamily,
     fontWeight = FontWeight.Normal,
-    fontSize = 11.sp,
+    fontSize = 10.5.sp,
     lineHeight = 14.sp
   )
 )
 
 val TabularMoneyStyle = TextStyle(
   fontFamily = JetBrainsMonoFontFamily,
-  fontWeight = FontWeight.SemiBold,
+  fontWeight = FontWeight.Bold,
   fontSize = 18.sp,
   lineHeight = 24.sp,
+  fontFeatureSettings = "tnum"
+)
+
+val TabularHeroMoneyStyle = TextStyle(
+  fontFamily = SpaceGroteskFontFamily,
+  fontWeight = FontWeight.Bold,
+  fontSize = 28.sp,
+  lineHeight = 34.sp,
+  fontFeatureSettings = "tnum"
+)
+
+val ScaleDigitalDisplayStyle = TextStyle(
+  fontFamily = JetBrainsMonoFontFamily,
+  fontWeight = FontWeight.Bold,
+  fontSize = 36.sp,
+  lineHeight = 40.sp,
   fontFeatureSettings = "tnum"
 )
 
 val TabularCompactStyle = TextStyle(
   fontFamily = JetBrainsMonoFontFamily,
   fontWeight = FontWeight.Medium,
-  fontSize = 13.sp,
-  lineHeight = 18.sp,
+  fontSize = 12.5.sp,
+  lineHeight = 17.sp,
   fontFeatureSettings = "tnum"
 )
